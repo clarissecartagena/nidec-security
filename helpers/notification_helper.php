@@ -1,0 +1,161 @@
+<?php
+
+require_once __DIR__ . '/../includes/db.php';
+
+// ---------------------------------------------------------------------------
+// Internal logging — writes to PHP error_log; swap for a DB/file logger later.
+// ---------------------------------------------------------------------------
+function _notif_log(string $level, string $msg, array $ctx = []): void
+{
+    $line = '[NOTIF:' . strtoupper($level) . '] ' . $msg;
+    if ($ctx) {
+        $line .= ' ' . json_encode($ctx, JSON_UNESCAPED_SLASHES);
+    }
+    error_log($line);
+}
+
+// ---------------------------------------------------------------------------
+// Prevent duplicate notifications in a rolling time window.
+// Returns true when the same (user, report, message) already exists within
+// $windowSeconds. Used before every insert to guarantee idempotency.
+// ---------------------------------------------------------------------------
+function _notif_already_sent(int $userId, ?int $reportId, string $message, int $windowSeconds = 3600): bool
+{
+    if ($windowSeconds <= 0) {
+        return false;
+    }
+    $row = db_fetch_one(
+        'SELECT id FROM notifications'
+        . ' WHERE user_id = ? AND ' . ($reportId !== null ? 'report_id = ?' : 'report_id IS NULL')
+        . ' AND message = ?'
+        . ' AND created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)'
+        . ' LIMIT 1',
+        $reportId !== null ? 'iisi' : 'isi',
+        $reportId !== null ? [$userId, $reportId, $message, $windowSeconds] : [$userId, $message, $windowSeconds]
+    );
+    return (bool)$row;
+}
+
+function notifications_unread_count(int $userId): int {
+    $row = db_fetch_one('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND is_read = 0', 'i', [$userId]);
+    return (int)($row['c'] ?? 0);
+}
+
+function notifications_fetch(int $userId, int $limit = 20): array {
+    $limit = max(1, min(50, $limit));
+
+    // LIMIT cannot be bound in MySQL prepared statements in all modes; inline safely.
+    $sql = 'SELECT n.id, n.report_id, n.message, n.is_read, n.created_at, r.report_no'
+        . ' FROM notifications n'
+        . ' LEFT JOIN reports r ON r.id = n.report_id'
+        . ' WHERE n.user_id = ?'
+        . ' ORDER BY n.created_at DESC, n.id DESC'
+        . ' LIMIT ' . (int)$limit;
+
+    return db_fetch_all($sql, 'i', [$userId]);
+}
+
+function notifications_mark_read(int $userId, int $notificationId): bool {
+    $affected = db_execute(
+        'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+        'ii',
+        [$notificationId, $userId]
+    );
+    return $affected > 0;
+}
+
+function notifications_mark_all_read(int $userId): int {
+    return db_execute('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', 'i', [$userId]);
+}
+
+function notify_user(int $userId, ?int $reportId, string $message, int $dedupWindowSeconds = 0): void
+{
+    try {
+        if ($dedupWindowSeconds > 0 && _notif_already_sent($userId, $reportId, $message, $dedupWindowSeconds)) {
+            return; // duplicate suppressed within window
+        }
+        db_execute(
+            'INSERT INTO notifications (user_id, report_id, message, is_read, created_at) VALUES (?, ?, ?, 0, NOW())',
+            'iis',
+            [$userId, $reportId, $message]
+        );
+    } catch (Throwable $e) {
+        _notif_log('error', 'notify_user failed', [
+            'user_id'   => $userId,
+            'report_id' => $reportId,
+            'message'   => $message,
+            'error'     => $e->getMessage(),
+        ]);
+    }
+}
+
+function notify_users(array $userIds, ?int $reportId, string $message, int $dedupWindowSeconds = 0): void
+{
+    $unique = [];
+    foreach ($userIds as $id) {
+        $id = (int)$id;
+        if ($id > 0) $unique[$id] = true;
+    }
+
+    foreach (array_keys($unique) as $uid) {
+        notify_user($uid, $reportId, $message, $dedupWindowSeconds);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// notify_role — dispatches to every active user in the given role.
+//
+// $dedupWindowSeconds: skip insert when the same (user, report, message)
+//   already exists within this many seconds. 0 = always insert.
+// ---------------------------------------------------------------------------
+function notify_role(
+    string $role,
+    ?int   $reportId,
+    string $message,
+    ?int   $departmentId        = null,
+    int    $dedupWindowSeconds  = 0
+): void {
+    $params = [$role];
+    $types  = 's';
+    $where  = "role = ? AND account_status = 'active'";
+
+    // Building scoping: security users are per-building.
+    // If building is empty/unknown we log a warning and bail out rather than
+    // spamming every security user across both sites.
+    if ($role === 'security' && $reportId !== null) {
+        $bRow     = db_fetch_one('SELECT building FROM reports WHERE id = ? LIMIT 1', 'i', [(int)$reportId]);
+        $building = isset($bRow['building']) ? strtoupper(trim((string)$bRow['building'])) : '';
+        if (in_array($building, ['NCFL', 'NPFL'], true)) {
+            $where   .= ' AND building = ?';
+            $params[] = $building;
+            $types   .= 's';
+        } else {
+            // Building unknown — do NOT broadcast to all Security users.
+            _notif_log('warning', 'notify_role(security) skipped: report building empty or invalid', [
+                'report_id' => $reportId,
+                'building'  => $building,
+            ]);
+            return;
+        }
+    }
+
+    if ($departmentId !== null) {
+        $where   .= ' AND department_id = ?';
+        $params[] = $departmentId;
+        $types   .= 'i';
+    }
+
+    $rows = db_fetch_all('SELECT id FROM users WHERE ' . $where, $types, $params);
+
+    if (empty($rows)) {
+        _notif_log('warning', 'notify_role: no active users found', [
+            'role'          => $role,
+            'report_id'     => $reportId,
+            'department_id' => $departmentId,
+        ]);
+        return;
+    }
+
+    $ids = array_map(static fn($r) => (int)$r['id'], $rows);
+    notify_users($ids, $reportId, $message, $dedupWindowSeconds);
+}

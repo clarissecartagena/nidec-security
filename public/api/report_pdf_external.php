@@ -1,0 +1,334 @@
+<?php
+require_once __DIR__ . '/../../includes/config.php';
+
+if (!isAuthenticated()) {
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+$user = getUser();
+$role = (string)($user['role'] ?? '');
+$allowedRoles = ['ga_president', 'ga_staff', 'security', 'department'];
+if (!in_array($role, $allowedRoles, true)) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
+
+$reportNo = trim((string)($_GET['id'] ?? ''));
+if ($reportNo === '') {
+    http_response_code(400);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Missing id']);
+    exit;
+}
+
+$userBuilding = normalize_building($user['building'] ?? null);
+$userDepartmentId = (int)($user['department_id'] ?? 0);
+
+$whereExtra = '';
+$params = [$reportNo];
+
+if ($role === 'security') {
+    if (!$userBuilding) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Account is missing an assigned building']);
+        exit;
+    }
+    $whereExtra = ' AND r.building = ?';
+    $params[] = $userBuilding;
+} elseif ($role === 'department') {
+    if ($userDepartmentId <= 0) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Account is missing an assigned department']);
+        exit;
+    }
+    $whereExtra = ' AND r.responsible_department_id = ?';
+    $params[] = $userDepartmentId;
+}
+
+$sql = "SELECT 
+        r.id, r.report_no, r.subject, r.category, r.location, r.severity, r.building,
+        r.status, r.submitted_at, r.details, r.actions_taken, r.remarks, r.security_remarks,
+        d.name AS department_name, u_submit.name AS submitted_by_name,
+        gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
+        gapa.decided_at, u_pres.name AS ga_president_name
+     FROM reports r
+     JOIN departments d ON d.id = r.responsible_department_id
+LEFT JOIN users u_submit ON u_submit.id = r.submitted_by
+LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
+LEFT JOIN users u_staff ON u_staff.id = gasr.reviewed_by
+LEFT JOIN ga_president_approvals gapa ON gapa.report_id = r.id
+LEFT JOIN users u_pres ON u_pres.id = gapa.decided_by
+    WHERE r.report_no = ? " . $whereExtra . " LIMIT 1";
+
+$report = db_fetch_one($sql, '', $params);
+if (!$report) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Report not found']);
+    exit;
+}
+
+// --- PDF HELPER FUNCTIONS ---
+function pdf_escape_text(string $s): string { return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $s); }
+function pdf_text($x, $y, $font, $size, $text): string { return "BT\n/$font $size Tf\n$x $y Td\n(" . pdf_escape_text($text) . ") Tj\nET\n"; }
+function pdf_line($x1, $y1, $x2, $y2, $w = 1.0): string { return "$w w\n$x1 $y1 m\n$x2 $y2 l\nS\n"; }
+
+function wrap_pdf_lines(string $text, int $maxLen): array {
+    $text = str_replace(["\r\n", "\r"], "\n", trim($text));
+    $out = [];
+    foreach (explode("\n", $text) as $p) {
+        $words = preg_split('/\s+/', trim($p), -1, PREG_SPLIT_NO_EMPTY);
+        $line = '';
+        foreach ($words as $w) {
+            if (strlen($line) + 1 + strlen($w) <= $maxLen) { $line .= ($line === '' ? '' : ' ') . $w; }
+            else { $out[] = $line; $line = $w; }
+        }
+        if ($line !== '') $out[] = $line;
+    }
+    return $out;
+}
+
+function build_pdf_image_objects_from_rgba($path): ?array {
+    // GD is required for imagecreatefrompng/jpeg and pixel access
+    if (!function_exists('imagecreatefrompng') || !function_exists('imagecreatefromjpeg') || !function_exists('imagecolorat') || !function_exists('imagecolorsforindex')) {
+        return null;
+    }
+    if (!is_file($path)) return null;
+    $info = @getimagesize($path);
+    if (!$info || empty($info['mime'])) return null;
+    $src = ($info['mime'] === 'image/png') ? @imagecreatefrompng($path) : @imagecreatefromjpeg($path);
+    if (!$src) return null;
+    $w = imagesx($src); $h = imagesy($src);
+    $rgb = ''; $alpha = '';
+    for ($py = 0; $py < $h; $py++) {
+        for ($px = 0; $px < $w; $px++) {
+            $c = imagecolorsforindex($src, imagecolorat($src, $px, $py));
+            $rgb .= chr($c['red']) . chr($c['green']) . chr($c['blue']);
+            $alpha .= chr((int)((127 - $c['alpha']) * 2));
+        }
+    }
+    imagedestroy($src);
+    $rgbS = gzcompress($rgb, 6); $maskS = gzcompress($alpha, 6);
+    return [
+        'maskObj' => "<< /Type /XObject /Subtype /Image /Width $w /Height $h /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length " . strlen($maskS) . " >>\nstream\n" . $maskS . "\nendstream",
+        'imgObj'  => "<< /Type /XObject /Subtype /Image /Width $w /Height $h /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask %SMASK% 0 R /Filter /FlateDecode /Length " . strlen($rgbS) . " >>\nstream\n" . $rgbS . "\nendstream",
+        'w' => $w, 'h' => $h
+    ];
+}
+
+$gdAvailableForPdfImages = function_exists('imagecreatefrompng') && function_exists('imagecreatefromjpeg') && function_exists('imagecolorat') && function_exists('imagecolorsforindex');
+
+// --- DATA PREPARATION ---
+$evidence = db_fetch_all("SELECT id, file_path FROM report_attachments WHERE report_id = ?", '', [$report['id']]);
+$gaManager = !empty($report['ga_president_name']) ? strtoupper($report['ga_president_name']) : "MS. KAREN F. ENRIQUEZ";
+$gaStaffName = !empty($report['ga_staff_reviewer']) ? strtoupper($report['ga_staff_reviewer']) : "MS. LIZA ACOSTA";
+$subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . " RE: " . strtoupper((string)($report['subject'] ?? ''));
+$dateStr = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
+
+// --- PDF CONSTANTS ---
+$pageW = 612; $pageH = 1008; $marginL = 50; $marginR = 50; $topY = $pageH - 50; $bottomY = 55;
+$logoPath = dirname(__DIR__) . '/assets/images/external-logo.png';
+$logo = build_pdf_image_objects_from_rgba($logoPath);
+
+$pages = []; $content = ''; $y = $topY; $evidenceImageObjects = [];
+
+$start_new_page = function () use (&$pages, &$content, &$y, $topY, $pageW, $marginL, $logo): void {
+        if ($content !== '') { $pages[] = $content; }
+        $content = ''; $y = $topY;
+        
+        if ($logo) {
+            // 1. MAKE LOGO BIGGER
+            $targetH = 85.0; // Increased from 80
+            $scale = $targetH / (float)$logo['h'];
+            $drawW = (float)$logo['w'] * $scale; 
+            $drawH = $targetH;
+            
+            // 2. POSITION LOGO (Fixed on the left)
+            $startX = $marginL; 
+            $yImg = $y - $drawH + 15; // Adjusted Y for better alignment
+            $content .= "q\n" . sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n", $drawW, $drawH, $startX, $yImg) . "/Im1 Do\nQ\n";
+        }
+
+        // Header text should not depend on GD/logo availability
+        $centerX = $pageW / 2;
+        $content .= "0 0 0 rg\n";
+        $textY = $y - 16;
+
+        // Line 1: Bold Company Name (Approx width 260pt)
+        $line1 = 'SISCO INVESTIGATION & SECURITY CORPORATION';
+        $content .= pdf_text($centerX - 130, $textY, 'F2', 14, $line1);
+
+        // Line 2: Detachment (Approx width 220pt)
+        $line2 = 'NIDEC Philippines Corporation - Security Detachment';
+        $content .= pdf_text($centerX - 110, $textY - 14, 'F1', 12, $line2);
+
+        // Line 3: Address (Approx width 300pt)
+        $line3 = '119 Technology Avenue Special Economic Zone Laguna Techno Park, Binan Laguna';
+        $content .= pdf_text($centerX - 150, $textY - 28, 'F1', 10, $line3);
+
+        $y -= 110; // Drop body start lower to avoid header overlap
+    };
+
+$start_new_page();
+
+// --- EXTERNAL INFO BLOCK ---
+
+// 1. DATE SECTION
+$content .= pdf_text($marginL, $y, 'F2', 11, 'DATE');
+$content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $dateStr); 
+$y -= 35; // Increased gap
+
+// 2. TO SECTION
+$content .= pdf_text($marginL, $y, 'F2', 11, 'TO');
+$content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $gaManager); $y -= 16;
+$content .= pdf_text($marginL + 80, $y, 'F1', 10, 'GA - Admin / Senior Manager'); 
+$y -= 40; // Increased gap
+
+// 3. THRU SECTION
+$content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
+$content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $gaStaffName); 
+$content .= pdf_text($marginL + 185, $y, 'F1', 11, 'Ms. Cherry Buenconsejo'); $y -= 16;
+$content .= pdf_text($marginL + 80, $y, 'F1', 10, 'GA - Supervisor');
+$content .= pdf_text($marginL + 195, $y, 'F1', 10, 'GA - Senior Staff'); 
+$y -= 45; // Increased gap
+
+// --- 4. SUBJECT SECTION ---
+$content .= pdf_text($marginL, $y, 'F2', 11, 'SUBJECT');
+
+// We wrap the subject text. 
+// 75 is the character limit before it moves to a new line.
+$subjectLines = wrap_pdf_lines(': ' . $subjectLine, 50); 
+
+foreach ($subjectLines as $index => $sLine) {
+    // If it's the first line, we keep the colon. 
+    // If it's the second line, we indent it to stay aligned.
+    $indent = ($index === 0) ? 70 : 77; 
+    
+    $content .= pdf_text($marginL + $indent, $y, 'F2', 11, $sLine);
+    
+    // If there are more lines, move the Y coordinate down
+    if (count($subjectLines) > 1 && $index < count($subjectLines) - 1) {
+        $y -= 14; 
+    }
+}
+
+// --- 5. LINE SEPARATOR ---
+$y -= 30; // Gap between the last line of Subject and the Line
+$content .= pdf_line($marginL, $y, $pageW - $marginR, $y, 0.5); 
+
+$y -= 35; // Gap before Details starts
+
+// --- CONDITIONAL BODY SECTIONS ---
+// Removed assessment, recommendation, and observation as they are not in your database
+$bodySections = [
+    'Details'        => $report['details'] ?? '',
+    'Action Taken'   => $report['actions_taken'] ?? '',
+    'Remarks'        => $report['remarks'] ?? '',
+    'Security Remarks' => $report['security_remarks'] ?? ''
+];
+
+foreach ($bodySections as $label => $val) {
+    $val = trim((string)$val);
+    if ($val !== '' && strtolower($val) !== 'n/a') {
+        if ($y < $bottomY + 40) $start_new_page();
+        $content .= pdf_text($marginL, $y, 'F2', 11, $label . ':'); $y -= 16;
+        foreach (wrap_pdf_lines($val, 95) as $line) {
+            if ($y < $bottomY + 20) $start_new_page();
+            $content .= pdf_text($marginL + 15, $y, 'F1', 10, $line); $y -= 14;
+        }
+        $y -= 15;
+    }
+}
+
+// --- EVIDENCE ---
+if (!empty($evidence)) {
+    if ($y < 200) $start_new_page();
+    $content .= pdf_text($marginL, $y, 'F2', 11, 'Evidence / Attachments:'); $y -= 30;
+    if (!$gdAvailableForPdfImages) {
+        $content .= pdf_text($marginL + 15, $y, 'F1', 10, 'Images omitted (PHP GD extension is not enabled).');
+        $y -= 20;
+    } else {
+        foreach ($evidence as $img) {
+            $imgP = dirname(__DIR__) . '/' . $img['file_path'];
+            $evid = build_pdf_image_objects_from_rgba($imgP);
+            if ($evid) {
+                $dispW = 400.0; $dispH = ($evid['h'] / $evid['w']) * $dispW;
+                if ($y - $dispH < 100) $start_new_page();
+                $ref = "ImEvid" . $img['id'];
+                $content .= "q\n" . sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n", $dispW, $dispH, $marginL, $y - $dispH) . "/$ref Do\nQ\n";
+                $y -= ($dispH + 30); $evidenceImageObjects[$ref] = $evid;
+            }
+        }
+    }
+}
+
+// --- SIGNATURE ---
+if ($y < 150) $start_new_page();
+$content .= pdf_text($marginL, $y, 'F1', 11, 'Prepared by:'); $y -= 45;
+$content .= pdf_text($marginL, $y, 'F2', 11, strtoupper($report['submitted_by_name'])); $y -= 14;
+$content .= pdf_text($marginL, $y, 'F1', 10, "Detachment Commander"); $y -= 12;
+$content .= pdf_text($marginL, $y, 'F1', 10, "SISCO-NCFL External Scty."); $y -= 12;
+$content .= pdf_text($marginL, $y, 'F1', 10, $dateStr);
+
+if ($content !== '') $pages[] = $content;
+
+// --- ASSEMBLY (Slightly optimized for external) ---
+$objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids %KIDS% /Count %COUNT% >>\nendobj\n",
+    "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n"
+];
+$imgObjNum = null;
+if ($logo) {
+    $objects[] = "5 0 obj\n" . $logo['maskObj'] . "\nendobj\n";
+    $objects[] = "6 0 obj\n" . str_replace('%SMASK%', '5', $logo['imgObj']) . "\nendobj\n";
+    $imgObjNum = 6;
+}
+$evidMap = []; $nextIdx = count($objects) + 1;
+foreach ($evidenceImageObjects as $ref => $data) {
+    $mIdx = $nextIdx++; $iIdx = $nextIdx++;
+    $objects[] = "$mIdx 0 obj\n" . $data['maskObj'] . "\nendobj\n";
+    $objects[] = "$iIdx 0 obj\n" . str_replace('%SMASK%', (string)$mIdx, $data['imgObj']) . "\nendobj\n";
+    $evidMap[$ref] = $iIdx;
+}
+$pageNums = []; $nextObj = $nextIdx;
+foreach ($pages as $pContent) {
+    $cNum = $nextObj++; $pNum = $nextObj++;
+    $xRefs = ($imgObjNum ? "/Im1 $imgObjNum 0 R " : "");
+    foreach ($evidMap as $ref => $idx) $xRefs .= "/$ref $idx 0 R ";
+    $objects[] = "$cNum 0 obj\n<< /Length " . strlen($pContent) . " >>\nstream\n{$pContent}endstream\nendobj\n";
+    $objects[] = "$pNum 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $pageW $pageH] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << $xRefs >> >> /Contents $cNum 0 R >>\nendobj\n";
+    $pageNums[] = $pNum;
+}
+$objects[1] = str_replace(['%KIDS%', '%COUNT%'], ['[ ' . implode(' ', array_map(fn($n)=>"$n 0 R", $pageNums)) . ' ]', (string)count($pageNums)], $objects[1]);
+
+// ... [Keep everything above this] ...
+
+$pdf = "%PDF-1.4\n"; $offsets = [0];
+foreach ($objects as $obj) { $offsets[] = strlen($pdf); $pdf .= $obj; }
+$xrefPos = strlen($pdf); $pdf .= "xref\n0 " . (count($objects) + 1) . "\n0000000000 65535 f \n";
+for ($i = 1; $i <= count($objects); $i++) $pdf .= str_pad((string)$offsets[$i], 10, '0', STR_PAD_LEFT) . " 00000 n \n";
+$pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n$xrefPos\n%%EOF";
+
+// --- START OF DOWNLOAD CODE ---
+if (ob_get_length()) { ob_clean(); } 
+
+header('Content-Type: application/pdf');
+
+// CHANGED: We use 'attachment' here to force the download
+$disposition = 'attachment'; 
+
+// FIXED: Changed $attachment to $disposition so the header actually works
+header('Content-Disposition: ' . $disposition . '; filename="external_report_' . $reportNo . '.pdf"');
+header('Cache-Control: private, max-age=0, must-revalidate');
+header('Pragma: public');
+
+echo $pdf;
+exit;

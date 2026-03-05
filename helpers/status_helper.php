@@ -1,0 +1,98 @@
+<?php
+
+function fetch_departments(): array {
+    return db_fetch_all('SELECT id, name FROM departments WHERE is_active = 1 ORDER BY name');
+}
+
+// Centralized status mapping (DB enum + display label + expected reviewer)
+$REPORT_STATUS_MAP = [
+    'submitted_to_ga_staff' => ['label' => 'Submitted to GA Staff', 'reviewer' => 'ga_staff'],
+    'ga_staff_reviewed' => ['label' => 'GA Staff Reviewed', 'reviewer' => 'ga_staff'],
+    'submitted_to_ga_president' => ['label' => 'Submitted to GA President', 'reviewer' => 'ga_president'],
+    'approved_by_ga_president' => ['label' => 'Approved by GA President', 'reviewer' => 'ga_president'],
+    'sent_to_department' => ['label' => 'Sent to Department', 'reviewer' => 'department'],
+    'under_department_fix' => ['label' => 'Under Department Fix', 'reviewer' => 'department'],
+    'for_security_final_check' => ['label' => 'For Security Final Check', 'reviewer' => 'security'],
+    'returned_to_department' => ['label' => 'Returned to Department', 'reviewer' => 'department'],
+    'resolved' => ['label' => 'Resolved', 'reviewer' => null],
+
+    // Legacy aliases (for pages that may still reference old values before migration)
+    'pending_ga_president_approval' => ['label' => 'Submitted to GA President', 'reviewer' => 'ga_president'],
+    'department_action' => ['label' => 'Under Department Fix', 'reviewer' => 'department'],
+    'ga_president_returned' => ['label' => 'Returned by GA President', 'reviewer' => 'ga_staff'],
+    'ga_staff_returned' => ['label' => 'Returned to Security', 'reviewer' => 'security'],
+    'closed' => ['label' => 'Resolved', 'reviewer' => null],
+];
+
+function report_status_label(string $status): string {
+    global $REPORT_STATUS_MAP;
+    return $REPORT_STATUS_MAP[$status]['label'] ?? $status;
+}
+
+function report_status_default_reviewer(?string $status): ?string {
+    if ($status === null) return null;
+    global $REPORT_STATUS_MAP;
+    return $REPORT_STATUS_MAP[$status]['reviewer'] ?? null;
+}
+
+function severity_label(string $sev): string {
+    $labels = [
+        'low' => 'Low',
+        'medium' => 'Medium',
+        'high' => 'High',
+        'critical' => 'Critical',
+    ];
+    return $labels[$sev] ?? $sev;
+}
+
+function role_landing_page(?string $role): string {
+    switch ($role) {
+        case 'security':
+            return 'security-dashboard.php';
+        case 'ga_staff':
+        case 'ga_president':
+            return 'dashboard.php';
+        case 'department':
+            return 'department-dashboard.php';
+        default:
+            return 'login.php';
+    }
+}
+
+/**
+ * Auto-trigger: if a department fix timeline is due, move the report to Security final check.
+ * Runs on normal page requests (no cron/external services), using existing schema.
+ */
+function auto_trigger_overdue_department_timelines(): void {
+    try {
+        $conn = db();
+        $conn->beginTransaction();
+
+        $overdue = db_fetch_all(
+            "SELECT r.id
+             FROM reports r
+             WHERE r.status = 'under_department_fix'
+               AND r.fix_due_date IS NOT NULL
+               AND r.fix_due_date <= NOW()"
+        );
+
+        foreach ($overdue as $o) {
+            $rid = (int)$o['id'];
+            // Keep this helper non-notifying; cron_check_timelines.php is the canonical automation.
+            db_execute(
+                "UPDATE reports SET status = 'for_security_final_check', current_reviewer = 'security' WHERE id = ?",
+                'i',
+                [$rid]
+            );
+        }
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        try {
+            $c = db();
+            if ($c->inTransaction()) $c->rollBack();
+        } catch (Throwable $ignored) {
+        }
+        // Intentionally swallow errors to avoid breaking page rendering.
+    }
+}
