@@ -47,6 +47,7 @@ ALTER TABLE department_actions     AUTO_INCREMENT = 1;
 ALTER TABLE ga_president_approvals AUTO_INCREMENT = 1;
 ALTER TABLE ga_staff_reviews       AUTO_INCREMENT = 1;
 ALTER TABLE reports                AUTO_INCREMENT = 1;
+ALTER TABLE users                  AUTO_INCREMENT = 1;
 ALTER TABLE departments            AUTO_INCREMENT = 1;
 
 -- bcrypt of 'Password123!'
@@ -64,7 +65,7 @@ INSERT INTO departments (id, name, is_active, created_at) VALUES
 
 -- ==================================================================
 -- USERS  (12 rows)
--- employee_no map:
+-- ID map:
 --   300553  = Karen F. Enriquez   (ga_president)
 --   401157  = Liza Acosta         (ga_staff)
 --   1200385 = Cherry Buenconsejo  (ga_staff)
@@ -78,30 +79,25 @@ INSERT INTO departments (id, name, is_active, created_at) VALUES
 --   8810279 = Christian Provido   (security, NPFL Internal)
 --   8810222 = Jayson Ruazol       (security, NPFL External)
 -- ==================================================================
-INSERT INTO users (employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_employee_no, created_at) VALUES
-  ('300553',  'Karen F. Enriquez',          'k.enriquez',    @PWD, 'ga_president', NULL, NULL, NULL, 'active', 'system',       NULL,      '2026-01-15 09:00:00'),
-  ('401157',  'Liza Acosta',                'l.acosta',      @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'system',       '300553',  '2026-01-15 09:05:00'),
-  ('1200385', 'Cherry Novelyn Buenconsejo', 'c.buenconsejo', @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'ga_president', '300553',  '2026-01-15 09:10:00');
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
+  (300553,  'k.enriquez',    'Karen F. Enriquez',          'k.enriquez',    @PWD, 'ga_president', NULL, NULL, NULL, 'active', 'system',       NULL,    '2026-01-15 09:00:00'),
+  (401157,  'l.acosta',      'Liza Acosta',                'l.acosta',      @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'system',       300553,  '2026-01-15 09:05:00'),
+  (1200385, 'c.buenconsejo', 'Cherry Novelyn Buenconsejo', 'c.buenconsejo', @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'ga_president', 300553,  '2026-01-15 09:10:00');
 
-INSERT INTO users (employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_employee_no, created_at) VALUES
-  ('4', 'Ana Mendoza',        'a.mendoza',    @PWD, 'department', 1, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:20:00'),
-  ('5', 'Carlos Bautista',    'c.bautista',   @PWD, 'department', 2, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:21:00'),
-  ('6', 'Elena Cruz',         'e.cruz',       @PWD, 'department', 3, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:22:00'),
-  ('7', 'Roberto Villanueva', 'r.villanueva', @PWD, 'department', 4, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:23:00'),
-  ('8', 'Maricel Torres',     'm.torres',     @PWD, 'department', 5, NULL, NULL, 'active', 'ga_staff', '1200385', '2026-01-15 09:24:00');
--- NOTE: The short employee_no values above ('4'–'8') are intentional for this dev seed.
--- These are fictional test users with no real company employee numbers.  The values
--- match the bare integer literals used as acted_by / changed_by FK references in the
--- department_actions and report_status_history tables below (MySQL auto-casts integer
--- literals to VARCHAR when the target column is VARCHAR).
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
+  (4, 'a.mendoza',    'Ana Mendoza',        'a.mendoza',    @PWD, 'department', 1, NULL, NULL, 'active', 'ga_staff', 300553,  '2026-01-15 09:20:00'),
+  (5, 'c.bautista',   'Carlos Bautista',    'c.bautista',   @PWD, 'department', 2, NULL, NULL, 'active', 'ga_staff', 300553,  '2026-01-15 09:21:00'),
+  (6, 'e.cruz',       'Elena Cruz',         'e.cruz',       @PWD, 'department', 3, NULL, NULL, 'active', 'ga_staff', 401157,  '2026-01-15 09:22:00'),
+  (7, 'r.villanueva', 'Roberto Villanueva', 'r.villanueva', @PWD, 'department', 4, NULL, NULL, 'active', 'ga_staff', 401157,  '2026-01-15 09:23:00'),
+  (8, 'm.torres',     'Maricel Torres',     'm.torres',     @PWD, 'department', 5, NULL, NULL, 'active', 'ga_staff', 1200385, '2026-01-15 09:24:00');
 
 -- NOTE: security_type is REQUIRED for the PDF template to work correctly.
 --   internal -> ARAGON header;  external -> SISCO header
-INSERT INTO users (employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_employee_no, created_at) VALUES
-  ('8810183', 'Benjamin D. Esteban', 'b.esteban',  @PWD, 'security', NULL, 'external', 'NCFL', 'active', 'ga_staff', '300553', '2026-01-15 09:30:00'),
-  ('8810305', 'Efren M. Corrales',   'e.corrales', @PWD, 'security', NULL, 'internal', 'NCFL', 'active', 'ga_staff', '300553', '2026-01-15 09:31:00'),
-  ('8810279', 'Christian Provido',   'c.provido',  @PWD, 'security', NULL, 'internal', 'NPFL', 'active', 'ga_staff', '401157', '2026-01-15 09:32:00'),
-  ('8810222', 'Jayson Ruazol',       'j.ruazol',   @PWD, 'security', NULL, 'external', 'NPFL', 'active', 'ga_staff', '401157', '2026-01-15 09:33:00');
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
+  (8810183, 'b.esteban',  'Benjamin D. Esteban', 'b.esteban',  @PWD, 'security', NULL, 'external', 'NCFL', 'active', 'ga_staff', 300553, '2026-01-15 09:30:00'),
+  (8810305, 'e.corrales', 'Efren M. Corrales',   'e.corrales', @PWD, 'security', NULL, 'internal', 'NCFL', 'active', 'ga_staff', 300553, '2026-01-15 09:31:00'),
+  (8810279, 'c.provido',  'Christian Provido',   'c.provido',  @PWD, 'security', NULL, 'internal', 'NPFL', 'active', 'ga_staff', 401157, '2026-01-15 09:32:00'),
+  (8810222, 'j.ruazol',   'Jayson Ruazol',       'j.ruazol',   @PWD, 'security', NULL, 'external', 'NPFL', 'active', 'ga_staff', 401157, '2026-01-15 09:33:00');
 
 -- ==================================================================
 -- REPORTS  (50 rows)
