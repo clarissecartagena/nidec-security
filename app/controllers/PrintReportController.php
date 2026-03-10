@@ -81,7 +81,7 @@ class PrintReportController
             if (in_array($role, ['ga_staff', 'ga_president'], true)) return true;
 
             if ($role === 'security') {
-                $userBuilding = normalize_building($userRow['building'] ?? null);
+                $userBuilding = normalize_building($userRow['entity'] ?? null);
                 $reportBuilding = normalize_building($reportRow['building'] ?? null);
                 if (!$userBuilding || !$reportBuilding) return false;
                 return $userBuilding === $reportBuilding;
@@ -246,7 +246,7 @@ class PrintReportController
 
         $reportBuilding = normalize_building($report['building'] ?? null);
         if (!$reportBuilding) {
-            $reportBuilding = normalize_building($user['building'] ?? null);
+            $reportBuilding = normalize_building($user['entity'] ?? null);
         }
 
         $reportingOfficer = (string)($report['submitted_by_name'] ?? '');

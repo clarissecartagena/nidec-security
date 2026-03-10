@@ -35,7 +35,7 @@ CREATE TABLE users (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
 
   -- ── Employee API fields (populated from company Employee API) ──────
-  employee_id     VARCHAR(50)  NULL,            -- company employee number
+  employee_no     VARCHAR(50)  NULL,            -- company employee number
   name            VARCHAR(120) NOT NULL,         -- fullname from API
   email           VARCHAR(150) NULL,             -- work email from API
   position        VARCHAR(100) NULL,             -- job title from API
@@ -46,7 +46,7 @@ CREATE TABLE users (
   role            ENUM('ga_president','ga_staff','security','department') NOT NULL,
   department_id   INT UNSIGNED NULL,
   security_type   ENUM('internal','external') NULL,
-  building        ENUM('NCFL','NPFL') NULL,
+  entity          ENUM('NCFL','NPFL') NULL,      -- assigned entity (security users)
   account_status  ENUM('active','inactive') NOT NULL DEFAULT 'active',
   created_by_role ENUM('ga_president','ga_staff','system') NULL DEFAULT NULL,
   created_by_user_id INT UNSIGNED NULL,
@@ -55,10 +55,10 @@ CREATE TABLE users (
 
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_username    (username),
-  UNIQUE KEY uq_users_employee_id (employee_id),   -- one account per employee
+  UNIQUE KEY uq_users_employee_no (employee_no),   -- one account per employee
   KEY idx_users_role              (role),
   KEY idx_users_department        (department_id),
-  KEY idx_users_building          (building),
+  KEY idx_users_entity            (entity),
   KEY idx_users_created_by        (created_by_user_id),
   CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id)
     ON UPDATE CASCADE ON DELETE SET NULL,

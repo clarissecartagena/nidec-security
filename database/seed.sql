@@ -79,12 +79,12 @@ INSERT INTO departments (id, name, is_active, created_at) VALUES
 --   8810279 = Christian Provido   (security, NPFL Internal)
 --   8810222 = Jayson Ruazol       (security, NPFL External)
 -- ==================================================================
-INSERT INTO users (id, employee_id, name, username, password_hash, role, department_id, security_type, building, account_status, created_by_role, created_by_user_id, created_at) VALUES
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
   (300553,  'k.enriquez',    'Karen F. Enriquez',          'k.enriquez',    @PWD, 'ga_president', NULL, NULL, NULL, 'active', 'system',       NULL,    '2026-01-15 09:00:00'),
   (401157,  'l.acosta',      'Liza Acosta',                'l.acosta',      @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'system',       300553,  '2026-01-15 09:05:00'),
   (1200385, 'c.buenconsejo', 'Cherry Novelyn Buenconsejo', 'c.buenconsejo', @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'ga_president', 300553,  '2026-01-15 09:10:00');
 
-INSERT INTO users (id, employee_id, name, username, password_hash, role, department_id, security_type, building, account_status, created_by_role, created_by_user_id, created_at) VALUES
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
   (4, 'a.mendoza',    'Ana Mendoza',        'a.mendoza',    @PWD, 'department', 1, NULL, NULL, 'active', 'ga_staff', 300553,  '2026-01-15 09:20:00'),
   (5, 'c.bautista',   'Carlos Bautista',    'c.bautista',   @PWD, 'department', 2, NULL, NULL, 'active', 'ga_staff', 300553,  '2026-01-15 09:21:00'),
   (6, 'e.cruz',       'Elena Cruz',         'e.cruz',       @PWD, 'department', 3, NULL, NULL, 'active', 'ga_staff', 401157,  '2026-01-15 09:22:00'),
@@ -93,7 +93,7 @@ INSERT INTO users (id, employee_id, name, username, password_hash, role, departm
 
 -- NOTE: security_type is REQUIRED for the PDF template to work correctly.
 --   internal -> ARAGON header;  external -> SISCO header
-INSERT INTO users (id, employee_id, name, username, password_hash, role, department_id, security_type, building, account_status, created_by_role, created_by_user_id, created_at) VALUES
+INSERT INTO users (id, employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_user_id, created_at) VALUES
   (8810183, 'b.esteban',  'Benjamin D. Esteban', 'b.esteban',  @PWD, 'security', NULL, 'external', 'NCFL', 'active', 'ga_staff', 300553, '2026-01-15 09:30:00'),
   (8810305, 'e.corrales', 'Efren M. Corrales',   'e.corrales', @PWD, 'security', NULL, 'internal', 'NCFL', 'active', 'ga_staff', 300553, '2026-01-15 09:31:00'),
   (8810279, 'c.provido',  'Christian Provido',   'c.provido',  @PWD, 'security', NULL, 'internal', 'NPFL', 'active', 'ga_staff', 401157, '2026-01-15 09:32:00'),

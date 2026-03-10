@@ -33,7 +33,7 @@ class ReportViewController
         $params = [$reportNo];
 
         if ($role === 'security') {
-            $building = normalize_building($user['building'] ?? null);
+            $building = normalize_building($user['entity'] ?? null);
             if (!$building) {
                 http_response_code(403);
                 die('Account has no assigned building');

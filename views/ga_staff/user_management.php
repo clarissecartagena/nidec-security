@@ -40,27 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             if ($action === 'add') {
-                $employeeId   = trim($_POST['employee_id'] ?? '');
+                $employeeNo   = trim($_POST['employee_id'] ?? '');
                 $username     = trim($_POST['username'] ?? '');
                 $password     = (string)($_POST['password'] ?? '');
-                $role         = (string)($_POST['role'] ?? '');
                 $departmentId = (int)($_POST['department_id'] ?? 0);
                 $securityType = (string)($_POST['security_type'] ?? '');
-                $building     = (string)($_POST['building'] ?? '');
                 $accountStatus = 'active';
 
-                if ($employeeId === '' || $username === '' || $password === '') {
+                if ($employeeNo === '' || $username === '' || $password === '') {
                     throw new RuntimeException('Please fill in all required fields.');
                 }
 
-                // GA Staff role restriction
-                if (!in_array($role, ['security', 'department'], true)) {
-                    throw new RuntimeException('Unauthorized Role Creation');
-                }
-
-                // Verify employee via company API (prevents POST spoofing)
+                // Verify employee via company API and auto-detect role + entity.
                 $empSvc    = new EmployeeService();
-                $empResult = $empSvc->getEmployee($employeeId);
+                $empResult = $empSvc->getEmployee($employeeNo);
                 if (!$empResult['success']) {
                     throw new RuntimeException(
                         'Employee verification failed: '
@@ -69,27 +62,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $emp = $empResult['employee'];
 
-                if ($role !== 'department') {
-                    $departmentId = 0;
+                // Auto-detect role and entity from Employee API data.
+                $detected = EmployeeService::detectRoleFromEmployee($emp);
+                if ($detected === null) {
+                    throw new RuntimeException(
+                        'This employee cannot be added to the system. '
+                        . 'Only GA Staff (HUMAN RESOURCE, GA AND COMPLIANCE section), '
+                        . 'Security Guards (job level: Security / Security Guard), '
+                        . 'and Department PICs (job level: SUPPORT/PIC) may be registered.'
+                    );
                 }
 
-                if ($role !== 'security') {
+                $role   = $detected['role'];
+                $entity = $detected['entity'];
+
+                if ($role === 'ga_president') {
+                    throw new RuntimeException('The GA President account cannot be added through this form.');
+                }
+
+                // GA Staff restriction — only security and department roles allowed.
+                if (!in_array($role, ['security', 'department', 'ga_staff'], true)) {
+                    throw new RuntimeException('Unauthorized Role Creation');
+                }
+
+                if ($role === 'department') {
+                    if ($departmentId <= 0) {
+                        // Try auto-resolving department from API data.
+                        $deptRow = db_fetch_one(
+                            'SELECT id FROM departments WHERE LOWER(name) = ? LIMIT 1',
+                            's',
+                            [strtolower($emp['department'] ?? '')]
+                        );
+                        $departmentId = $deptRow ? (int)$deptRow['id'] : 0;
+                    }
                     $securityType = '';
-                    $building     = '';
-                } else {
+                    $entity       = '';
+                } elseif ($role === 'security') {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a valid Security Type.');
                     }
-                    if (!in_array($building, ['NCFL', 'NPFL'], true)) {
-                        throw new RuntimeException('Please select an assigned building (NCFL/NPFL).');
-                    }
+                    $departmentId = 0;
+                } else {
+                    // ga_staff
+                    $departmentId = 0;
+                    $securityType = '';
+                    $entity       = '';
                 }
 
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 db_execute(
                     "INSERT INTO users
-                         (employee_id, name, email, position, username, password_hash,
-                          role, department_id, security_type, building, account_status,
+                         (employee_no, name, email, position, username, password_hash,
+                          role, department_id, security_type, entity, account_status,
                           created_by_role, created_by_user_id)
                      VALUES
                          (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), ?, ?,
@@ -100,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $emp['employee_id'], $emp['fullname'],
                         $emp['email'],       $emp['position'],
                         $username,           $hash,
-                        $role, $departmentId, $securityType, $building, $accountStatus,
+                        $role, $departmentId, $securityType, $entity, $accountStatus,
                         $currentUserId,
                     ]
                 );
@@ -114,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $role = (string)($_POST['role'] ?? '');
                 $departmentId = (int)($_POST['department_id'] ?? 0);
                 $securityType = (string)($_POST['security_type'] ?? '');
-                $building = (string)($_POST['building'] ?? '');
+                $entity = (string)($_POST['entity'] ?? '');
                 $accountStatus = (string)($_POST['account_status'] ?? 'active');
 
                 if ($id <= 0 || $name === '' || $username === '') {
@@ -142,28 +166,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($role !== 'security') {
                     $securityType = '';
-                    $building = '';
+                    $entity = '';
                 } else {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a valid Security Type.');
                     }
-                    if (!in_array($building, ['NCFL', 'NPFL'], true)) {
-                        throw new RuntimeException('Please select an assigned building (NCFL/NPFL).');
+                    if (!in_array($entity, ['NCFL', 'NPFL'], true)) {
+                        throw new RuntimeException('Please select an assigned entity (NCFL/NPFL).');
                     }
                 }
 
                 if ($password !== '') {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
                     db_execute(
-                        'UPDATE users SET name=?, username=?, password_hash=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), building=NULLIF(?,\'\'), account_status=? WHERE id=?',
+                        'UPDATE users SET name=?, username=?, password_hash=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE id=?',
                         'ssssisssi',
-                        [$name, $username, $hash, $role, $departmentId, $securityType, $building, $accountStatus, $id]
+                        [$name, $username, $hash, $role, $departmentId, $securityType, $entity, $accountStatus, $id]
                     );
                 } else {
                     db_execute(
-                        'UPDATE users SET name=?, username=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), building=NULLIF(?,\'\'), account_status=? WHERE id=?',
+                        'UPDATE users SET name=?, username=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE id=?',
                         'sssisssi',
-                        [$name, $username, $role, $departmentId, $securityType, $building, $accountStatus, $id]
+                        [$name, $username, $role, $departmentId, $securityType, $entity, $accountStatus, $id]
                     );
                 }
 
@@ -191,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = db_fetch_all(
-    "SELECT u.id, u.name, u.username, u.role, u.department_id, u.security_type, u.building, u.account_status, u.created_at, d.name AS department_name
+    "SELECT u.id, u.employee_no, u.name, u.username, u.role, u.department_id, u.security_type, u.entity, u.account_status, u.created_at, d.name AS department_name
      FROM users u
      LEFT JOIN departments d ON d.id = u.department_id
      WHERE u.role IN ('security','department')
@@ -247,6 +271,7 @@ function user_role_label(string $role): string {
             <table>
                 <thead>
                     <tr>
+                        <th>Emp ID</th>
                         <th>Name</th>
                         <th>Username</th>
                         <th>Role</th>
@@ -257,10 +282,11 @@ function user_role_label(string $role): string {
                 </thead>
                 <tbody>
                     <?php if (empty($users)): ?>
-                        <tr><td colspan="6" class="text-center text-muted-foreground">No users found.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted-foreground">No users found.</td></tr>
                     <?php else: ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
+                                <td class="font-mono text-xs"><?php echo htmlspecialchars($u['employee_no'] ?? '—'); ?></td>
                                 <td class="font-medium"><?php echo htmlspecialchars($u['name']); ?></td>
                                 <td class="font-mono text-xs"><?php echo htmlspecialchars($u['username']); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars(user_role_label($u['role'])); ?></td>
@@ -278,7 +304,7 @@ function user_role_label(string $role): string {
                                                 'department_id' => (int)($u['department_id'] ?? 0),
                                                 'department' => (string)($u['department_name'] ?? ''),
                                                 'security_type' => (string)($u['security_type'] ?? ''),
-                                                'building' => (string)($u['building'] ?? ''),
+                                                'entity' => (string)($u['entity'] ?? ''),
                                                 'account_status' => (string)($u['account_status'] ?? 'active')
                                             ]), ENT_QUOTES, 'UTF-8'); ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -442,15 +468,6 @@ function user_role_label(string $role): string {
                                 </select>
                             </div>
 
-                            <div id="add-building-wrap" class="hidden">
-                                <label class="block text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                                <select name="building" id="add-building">
-                                    <option value="" selected disabled>Select building</option>
-                                    <option value="NCFL">NCFL</option>
-                                    <option value="NPFL">NPFL</option>
-                                </select>
-                            </div>
-
                             <div class="modal-footer md:col-span-2">
                                 <button type="button" onclick="UsersPage.closeAddModal()" class="btn btn-outline">Cancel</button>
                                 <button type="submit" class="btn btn-primary">Add User</button>
@@ -530,10 +547,10 @@ function user_role_label(string $role): string {
                             </select>
                         </div>
 
-                        <div id="edit-building-wrap" class="hidden">
-                            <label class="block text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                            <select name="building" id="edit-building">
-                                <option value="" selected disabled>Select building</option>
+                        <div id="edit-entity-wrap" class="hidden">
+                            <label class="block text-sm font-medium text-foreground mb-1">Assigned Entity</label>
+                            <select name="entity" id="edit-entity">
+                                <option value="" selected disabled>Select entity</option>
                                 <option value="NCFL">NCFL</option>
                                 <option value="NPFL">NPFL</option>
                             </select>
@@ -725,7 +742,11 @@ function user_role_label(string $role): string {
             const results = document.getElementById('emp-search-results');
             if (results) results.classList.add('hidden');
 
-            const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+            // Use exact employee_id lookup for all-digit input; free-text search otherwise.
+            const isNumericId = /^\d+$/.test(query);
+            const url = isNumericId
+                ? this._empApiUrl + '?employee_id=' + encodeURIComponent(query)
+                : this._empApiUrl + '?q=' + encodeURIComponent(query);
 
             fetch(url, { credentials: 'same-origin' })
                 .then(r => {
@@ -850,12 +871,12 @@ function user_role_label(string $role): string {
             if (!roleEl) return;
             const role = roleEl.value;
 
-            const deptWrap     = document.getElementById(prefix + '-department-wrap');
-            const deptSelect   = document.getElementById(prefix + '-department-id');
-            const secWrap      = document.getElementById(prefix + '-security-type-wrap');
-            const secSelect    = document.getElementById(prefix + '-security-type');
-            const buildingWrap = document.getElementById(prefix + '-building-wrap');
-            const buildingSelect = document.getElementById(prefix + '-building');
+            const deptWrap    = document.getElementById(prefix + '-department-wrap');
+            const deptSelect  = document.getElementById(prefix + '-department-id');
+            const secWrap     = document.getElementById(prefix + '-security-type-wrap');
+            const secSelect   = document.getElementById(prefix + '-security-type');
+            const entityWrap  = document.getElementById(prefix + '-entity-wrap');
+            const entitySelect = document.getElementById(prefix + '-entity');
 
             const isDepartment = role === 'department';
             const isSecurity   = role === 'security';
@@ -868,9 +889,9 @@ function user_role_label(string $role): string {
             if (secSelect) secSelect.required = isSecurity;
             if (!isSecurity && secSelect) secSelect.value = '';
 
-            if (buildingWrap) buildingWrap.classList.toggle('hidden', !isSecurity);
-            if (buildingSelect) buildingSelect.required = isSecurity;
-            if (!isSecurity && buildingSelect) buildingSelect.value = '';
+            if (entityWrap) entityWrap.classList.toggle('hidden', !isSecurity);
+            if (entitySelect) entitySelect.required = isSecurity;
+            if (!isSecurity && entitySelect) entitySelect.value = '';
         },
 
         // ── Edit modal ────────────────────────────────────────────────────
@@ -895,8 +916,8 @@ function user_role_label(string $role): string {
             const secSelect = document.getElementById('edit-security-type');
             if (secSelect) secSelect.value = user.security_type || '';
 
-            const buildingSelect = document.getElementById('edit-building');
-            if (buildingSelect) buildingSelect.value = user.building || '';
+            const entitySelect = document.getElementById('edit-entity');
+            if (entitySelect) entitySelect.value = user.entity || '';
 
             this.syncConditionalFields('edit');
             this.toggleModal('edit-user-modal');

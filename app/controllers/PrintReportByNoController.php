@@ -20,7 +20,7 @@ class PrintReportByNoController
 
         $user = getUser();
         $role = (string)($user['role'] ?? '');
-        $userBuilding = normalize_building($user['building'] ?? null);
+        $userBuilding = normalize_building($user['entity'] ?? null);
         $userDepartmentId = (int)($user['department_id'] ?? 0);
 
         $whereExtra = '';
