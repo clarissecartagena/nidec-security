@@ -57,8 +57,30 @@ function isAuthenticated() {
 }
 
 // Helper function to get current user
-function getUser() {
-    return $_SESSION['user'] ?? null;
+function getUser(): ?array {
+    if (!isset($_SESSION['user'])) {
+        return null;
+    }
+
+    // Auto-repair stale sessions: users who logged in before the DB schema
+    // migration (employee_id → employee_no) have employee_no = '' in their
+    // session.  Resolve it via username once and write it back so every
+    // controller/service gets the correct value without needing individual fixes.
+    if (
+        empty($_SESSION['user']['employee_no']) &&
+        !empty($_SESSION['user']['username'])
+    ) {
+        $row = db_fetch_one(
+            'SELECT employee_no FROM users WHERE username = ? LIMIT 1',
+            's',
+            [$_SESSION['user']['username']]
+        );
+        if ($row && $row['employee_no'] !== '') {
+            $_SESSION['user']['employee_no'] = $row['employee_no'];
+        }
+    }
+
+    return $_SESSION['user'];
 }
 
 // Helper function to check user role
