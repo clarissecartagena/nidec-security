@@ -5,9 +5,9 @@ require_once __DIR__ . '/../../includes/db.php';
 class UserModel {
     public function findByUsername(string $username): ?array {
         $user = db_fetch_one(
-            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
+            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
                     u.username, u.password_hash, u.role, u.account_status,
-                    u.department_id, u.security_type, u.building,
+                    u.department_id, u.security_type, u.entity,
                     d.name AS department_name
              FROM users u
              LEFT JOIN departments d ON d.id = u.department_id
@@ -18,16 +18,19 @@ class UserModel {
         return $user ?: null;
     }
 
-    public function findByEmployeeId(string $employeeId): ?array {
+    public function findByEmployeeNo(string $employeeNo): ?array {
         $user = db_fetch_one(
-            'SELECT u.id, u.name, u.username, u.password_hash, u.role, u.account_status, u.department_id, u.security_type, u.building, d.name AS department_name
+            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
+                    u.username, u.password_hash, u.role, u.account_status,
+                    u.department_id, u.security_type, u.entity,
+                    d.name AS department_name
              FROM users u
              LEFT JOIN departments d ON d.id = u.department_id
-             WHERE u.employee_id = ? LIMIT 1',
+             WHERE u.employee_no = ? LIMIT 1',
             's',
-            [$employeeId]
+            [$employeeNo]
         );
-
         return $user ?: null;
     }
 }
+

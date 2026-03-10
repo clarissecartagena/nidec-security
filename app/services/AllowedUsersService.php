@@ -6,13 +6,21 @@ require_once __DIR__ . '/../models/UsersModel.php';
 /**
  * AllowedUsersService
  * ──────────────────────────────────────────────────────────────────────────
- * Manages the list of employee IDs that are permitted to log in.
+ * Manages the list of employee numbers that are permitted to log in.
  *
  * When an employee in the allowed list authenticates via the corporate login
  * API but does not yet have a local account, this service:
  *   1. Looks up their profile data in the Employee API.
- *   2. Inserts a new active account in the local `users` table.
- *   3. Returns the newly created user record.
+ *   2. Auto-detects their role and entity from the API data.
+ *   3. Inserts a new active account in the local `users` table.
+ *   4. Returns the newly created user record.
+ *
+ * Role detection (via EmployeeService::detectRoleFromEmployee()):
+ *   GA President  – employee_no === '300553'
+ *   GA Staff      – section  === 'HUMAN RESOURCE, GA AND COMPLIANCE'
+ *   Security NCFL – job_level === 'Security'
+ *   Security NPFL – job_level === 'SEGURITY GUARD'
+ *   Department    – job_level === 'SUPPORT/PIC'
  *
  * The allowed list is configured in config/allowed_users.php.
  *
@@ -44,24 +52,25 @@ class AllowedUsersService
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Returns true when the given employee ID is in the allowed list.
+     * Returns true when the given employee number is in the allowed list.
      */
-    public function isAllowed(string $employeeId): bool
+    public function isAllowed(string $employeeNo): bool
     {
-        return $this->getConfig($employeeId) !== null;
+        return $this->getConfig($employeeNo) !== null;
     }
 
     /**
-     * Returns the role configuration for an allowed employee, or null when
-     * the employee ID is not in the list.
+     * Returns the configuration for an allowed employee, or null when
+     * the employee number is not in the list.
      *
-     * @return array{employee_id:string, role:string, security_type:?string, building:?string, department_id:?int}|null
+     * @return array{employee_no:string, role:?string, security_type:?string, entity:?string, department_id:?int}|null
      */
-    public function getConfig(string $employeeId): ?array
+    public function getConfig(string $employeeNo): ?array
     {
-        $employeeId = trim($employeeId);
+        $employeeNo = trim($employeeNo);
         foreach ($this->allowed as $entry) {
-            if (isset($entry['employee_id']) && (string)$entry['employee_id'] === $employeeId) {
+            $id = (string)($entry['employee_no'] ?? $entry['employee_id'] ?? '');
+            if ($id === $employeeNo) {
                 return $entry;
             }
         }
@@ -72,31 +81,19 @@ class AllowedUsersService
      * Provision a new local user account for an allowed employee.
      *
      * Steps:
-     *   1. Verify the employee_id is in the allowed list.
+     *   1. Verify the employee_no is in the allowed list.
      *   2. Fetch the employee's profile from the Employee API.
-     *   3. Insert a new active account into the local `users` table.
-     *   4. Return the newly created user record (ready for session creation).
+     *   3. Auto-detect role and entity from the API data.
+     *   4. Insert a new active account into the local `users` table.
+     *   5. Return the newly created user record (ready for session creation).
      *
-     * The username used is:
-     *   - The 'username' value from config/allowed_users.php if present, OR
-     *   - The $username parameter passed in (from the corporate API login attempt).
-     *
-     * The password stored is:
-     *   - A bcrypt hash of the 'password' value from the config if present, OR
-     *   - An empty hash (only corporate API login will work).
-     *
-     * Returns null when:
-     *   • The employee_id is not in the allowed list.
-     *   • The Employee API cannot be reached or the employee is not found.
-     *   • Inserting the record fails (e.g., duplicate username).
-     *
-     * @param  string $employeeId  The employee ID returned by the login API.
+     * @param  string $employeeNo  The employee number returned by the login API.
      * @param  string $username    The username the employee used to log in (fallback).
      * @return array<string,mixed>|null  User record on success, null on failure.
      */
-    public function provision(string $employeeId, string $username): ?array
+    public function provision(string $employeeNo, string $username): ?array
     {
-        $config = $this->getConfig($employeeId);
+        $config = $this->getConfig($employeeNo);
         if ($config === null) {
             return null;
         }
@@ -112,16 +109,27 @@ class AllowedUsersService
         $passwordHash  = $plainPassword !== '' ? password_hash($plainPassword, PASSWORD_DEFAULT) : '';
 
         // Fetch profile from the Employee API.
-        $empResult = $this->employeeService->getEmployee($employeeId);
+        $empResult = $this->employeeService->getEmployee($employeeNo);
         if (!$empResult['success'] || empty($empResult['employee'])) {
             return null;
         }
         $emp = $empResult['employee'];
 
-        $role         = (string)($config['role']          ?? 'department');
-        $securityType = $config['security_type'] ?? null;
-        $building     = $config['building']      ?? null;
-        $departmentId = (int)($config['department_id'] ?? 0);
+        // ── Determine role + entity from Employee API data ────────────────
+        $detected = EmployeeService::detectRoleFromEmployee($emp);
+
+        // Fall back to config-specified role if API detection fails (e.g. mock data).
+        if ($detected !== null) {
+            $role   = $detected['role'];
+            $entity = $detected['entity'];
+        } else {
+            $role   = (string)($config['role'] ?? 'department');
+            $entity = (string)($config['entity'] ?? $config['building'] ?? '');
+        }
+
+        // security_type can only come from config (not from the Employee API).
+        $securityType = (string)($config['security_type'] ?? '');
+        $departmentId = (int)($config['department_id']    ?? 0);
 
         // If department_id is not set in config, try to resolve it from the
         // department name returned by the Employee API.
@@ -131,25 +139,25 @@ class AllowedUsersService
 
         try {
             $this->usersModel->insertUser(
-                (string)($emp['employee_id'] ?? $employeeId),
+                (string)($emp['employee_id'] ?? $employeeNo),
                 (string)($emp['fullname']    ?? ''),
                 (string)($emp['email']       ?? ''),
                 (string)($emp['position']    ?? ''),
                 $resolvedUsername,
                 $passwordHash,
                 $role,
-                (string)($securityType ?? ''),
-                (string)($building     ?? ''),
-                (int)$departmentId,
+                $securityType,
+                $entity,
+                $departmentId,
                 'active'
             );
         } catch (Throwable $e) {
-            // Insertion failed (e.g., duplicate username or employee_id).
+            // Insertion failed (e.g., duplicate username or employee_no).
             return null;
         }
 
         // Return the freshly inserted record so the caller can open a session.
-        return $this->usersModel->findProvisionedUser($employeeId, $resolvedUsername);
+        return $this->usersModel->findProvisionedUser($employeeNo, $resolvedUsername);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -174,3 +182,4 @@ class AllowedUsersService
         return $row ? (int)$row['id'] : 0;
     }
 }
+

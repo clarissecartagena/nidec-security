@@ -12,11 +12,11 @@ class UsersModel
     /**
      * Insert a new user whose identity has been verified via the Employee API.
      *
-     * $employeeId, $name, $email, $position come from the API response — they
+     * $employeeNo, $name, $email, $position come from the API response — they
      * are never sourced from raw POST data to prevent spoofing.
      */
     public function insertUser(
-        string $employeeId,
+        string $employeeNo,
         string $name,
         string $email,
         string $position,
@@ -24,23 +24,23 @@ class UsersModel
         string $passwordHash,
         string $role,
         string $securityType,
-        string $building,
+        string $entity,
         int    $departmentId,
         string $accountStatus
     ): void {
         db_execute(
             'INSERT INTO users
-                 (employee_id, name, email, position, username, password_hash,
-                  role, security_type, building, department_id, account_status)
+                 (employee_no, name, email, position, username, password_hash,
+                  role, security_type, entity, department_id, account_status)
              VALUES
                  (NULLIF(?,\'\'), ?, NULLIF(?,\'\'), NULLIF(?,\'\'),
                   ?, ?, ?,
                   NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,0), ?)',
             '',
             [
-                $employeeId, $name, $email, $position,
+                $employeeNo, $name, $email, $position,
                 $username, $passwordHash, $role,
-                $securityType, $building, $departmentId, $accountStatus,
+                $securityType, $entity, $departmentId, $accountStatus,
             ]
         );
     }
@@ -52,14 +52,14 @@ class UsersModel
         string $passwordHash,
         string $role,
         string $securityType,
-        string $building,
+        string $entity,
         int $departmentId,
         string $accountStatus
     ): void {
         db_execute(
-            'UPDATE users SET name=?, username=?, password_hash=?, role=?, security_type=NULLIF(?,\'\'), building=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
+            'UPDATE users SET name=?, username=?, password_hash=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
             'ssssssisi',
-            [$name, $username, $passwordHash, $role, $securityType, $building, $departmentId, $accountStatus, $id]
+            [$name, $username, $passwordHash, $role, $securityType, $entity, $departmentId, $accountStatus, $id]
         );
     }
 
@@ -69,14 +69,14 @@ class UsersModel
         string $username,
         string $role,
         string $securityType,
-        string $building,
+        string $entity,
         int $departmentId,
         string $accountStatus
     ): void {
         db_execute(
-            'UPDATE users SET name=?, username=?, role=?, security_type=NULLIF(?,\'\'), building=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
+            'UPDATE users SET name=?, username=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
             'sssssisi',
-            [$name, $username, $role, $securityType, $building, $departmentId, $accountStatus, $id]
+            [$name, $username, $role, $securityType, $entity, $departmentId, $accountStatus, $id]
         );
     }
 
@@ -86,25 +86,25 @@ class UsersModel
     }
 
     /**
-     * Look up a just-provisioned user by employee_id or username.
+     * Look up a just-provisioned user by employee_no or username.
      * Returns the full record (including department_name join) needed for
      * session creation, or null when no matching row is found.
      *
      * @return array<string,mixed>|null
      */
-    public function findProvisionedUser(string $employeeId, string $username): ?array
+    public function findProvisionedUser(string $employeeNo, string $username): ?array
     {
-        // Try by employee_id first (most reliable).
+        // Try by employee_no first (most reliable).
         $user = db_fetch_one(
-            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
+            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
                     u.username, u.password_hash, u.role, u.account_status,
-                    u.department_id, u.security_type, u.building,
+                    u.department_id, u.security_type, u.entity,
                     d.name AS department_name
              FROM users u
              LEFT JOIN departments d ON d.id = u.department_id
-             WHERE u.employee_id = ? LIMIT 1',
+             WHERE u.employee_no = ? LIMIT 1',
             's',
-            [$employeeId]
+            [$employeeNo]
         );
 
         if ($user) {
@@ -113,9 +113,9 @@ class UsersModel
 
         // Fall back to username lookup.
         return db_fetch_one(
-            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
+            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
                     u.username, u.password_hash, u.role, u.account_status,
-                    u.department_id, u.security_type, u.building,
+                    u.department_id, u.security_type, u.entity,
                     d.name AS department_name
              FROM users u
              LEFT JOIN departments d ON d.id = u.department_id
@@ -129,8 +129,8 @@ class UsersModel
     public function getAllUsers(): array
     {
         return db_fetch_all(
-            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
-                    u.username, u.role, u.security_type, u.building,
+            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
+                    u.username, u.role, u.security_type, u.entity,
                     u.department_id, u.account_status,
                     d.name AS department_name
              FROM users u

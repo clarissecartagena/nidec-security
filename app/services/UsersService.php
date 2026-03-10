@@ -38,25 +38,20 @@ class UsersService
         try {
             if ($action === 'add') {
                 // ── Step 1: basic field extraction ──────────────────────────────
-                $employeeId   = trim((string)($post['employee_id'] ?? ''));
+                $employeeNo   = trim((string)($post['employee_id'] ?? ''));
                 $username     = trim((string)($post['username'] ?? ''));
                 $password     = (string)($post['password'] ?? '');
-                $role         = (string)($post['role'] ?? '');
-                $departmentId = (int)($post['department_id'] ?? 0);
                 $securityType = (string)($post['security_type'] ?? '');
-                $building     = (string)($post['building'] ?? '');
                 $accountStatus = 'active';
 
-                if ($employeeId === '' || $username === '' || $password === ''
-                    || !in_array($role, ['ga_staff', 'security', 'department'], true)
-                ) {
+                if ($employeeNo === '' || $username === '' || $password === '') {
                     throw new RuntimeException('Please fill in all required fields.');
                 }
 
-                // ── Step 2: verify employee via API (prevents POST spoofing) ────
+                // ── Step 2: verify employee via API and auto-detect role ─────────
                 // Name, email, department, and position are ALWAYS sourced from
                 // the API result — never from the submitted form fields.
-                $empResult = $this->employeeService->getEmployee($employeeId);
+                $empResult = $this->employeeService->getEmployee($employeeNo);
                 if (!$empResult['success']) {
                     throw new RuntimeException(
                         'Employee verification failed: '
@@ -65,26 +60,51 @@ class UsersService
                 }
                 $emp = $empResult['employee'];
 
-                // ── Step 3: role-specific validation ────────────────────────────
+                // ── Step 3: auto-detect role + entity from Employee API ──────────
+                $detected = EmployeeService::detectRoleFromEmployee($emp);
+                if ($detected === null) {
+                    throw new RuntimeException(
+                        'This employee cannot be added to the system. '
+                        . 'Only GA Staff (HUMAN RESOURCE, GA AND COMPLIANCE section), '
+                        . 'Security Guards (job level: Security / Security Guard), '
+                        . 'and Department PICs (job level: SUPPORT/PIC) may be registered.'
+                    );
+                }
+
+                $role   = $detected['role'];
+                $entity = $detected['entity'];
+
+                // GA President can only be added via the allowed_users config.
+                if ($role === 'ga_president') {
+                    throw new RuntimeException('The GA President account cannot be added through this form.');
+                }
+
+                // ── Step 4: role-specific validation ────────────────────────────
+                $departmentId = 0;
                 if ($role === 'department') {
-                    if ($departmentId <= 0) throw new RuntimeException('Please select a department.');
+                    $departmentId = (int)($post['department_id'] ?? 0);
+                    if ($departmentId <= 0) {
+                        // Try auto-resolving from API dept name.
+                        $departmentId = $this->departmentIdByName((string)($emp['department'] ?? ''));
+                    }
+                    if ($departmentId <= 0) {
+                        throw new RuntimeException('Please select a department for this user.');
+                    }
                     $securityType = '';
-                    $building     = '';
+                    $entity       = '';
                 } elseif ($role === 'security') {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a security type (internal/external).');
                     }
-                    if (!in_array($building, ['NCFL', 'NPFL'], true)) {
-                        throw new RuntimeException('Please select an assigned building (NCFL/NPFL).');
-                    }
-                    $departmentId = 0;
+                    // entity (NCFL/NPFL) is auto-detected from job_level — no manual input needed.
                 } else {
+                    // ga_staff
                     $departmentId = 0;
                     $securityType = '';
-                    $building     = '';
+                    $entity       = '';
                 }
 
-                // ── Step 4: persist ─────────────────────────────────────────────
+                // ── Step 5: persist ─────────────────────────────────────────────
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $this->model->insertUser(
                     $emp['employee_id'],
@@ -95,7 +115,7 @@ class UsersService
                     $hash,
                     $role,
                     $securityType,
-                    $building,
+                    $entity,
                     $departmentId,
                     $accountStatus
                 );
@@ -110,7 +130,7 @@ class UsersService
                 $departmentId = (int)($post['department_id'] ?? 0);
                 $accountStatus = (string)($post['account_status'] ?? 'active');
                 $securityType = (string)($post['security_type'] ?? '');
-                $building = (string)($post['building'] ?? '');
+                $entity = (string)($post['entity'] ?? '');
 
                 if ($id <= 0 || $name === '' || $username === '' || !in_array($role, ['ga_president', 'ga_staff', 'security', 'department'], true)) {
                     throw new RuntimeException('Invalid update request.');
@@ -130,26 +150,26 @@ class UsersService
                 if ($role === 'department') {
                     if ($departmentId <= 0) throw new RuntimeException('Please select a department.');
                     $securityType = '';
-                    $building = '';
+                    $entity = '';
                 } elseif ($role === 'security') {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a security type (internal/external).');
                     }
-                    if (!in_array($building, ['NCFL', 'NPFL'], true)) {
-                        throw new RuntimeException('Please select an assigned building (NCFL/NPFL).');
+                    if (!in_array($entity, ['NCFL', 'NPFL'], true)) {
+                        throw new RuntimeException('Please select an assigned entity (NCFL/NPFL).');
                     }
                     $departmentId = 0;
                 } else {
                     $departmentId = 0;
                     $securityType = '';
-                    $building = '';
+                    $entity = '';
                 }
 
                 if ($password !== '') {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
-                    $this->model->updateUserWithPassword($id, $name, $username, $hash, $role, $securityType, $building, $departmentId, $accountStatus);
+                    $this->model->updateUserWithPassword($id, $name, $username, $hash, $role, $securityType, $entity, $departmentId, $accountStatus);
                 } else {
-                    $this->model->updateUserNoPassword($id, $name, $username, $role, $securityType, $building, $departmentId, $accountStatus);
+                    $this->model->updateUserNoPassword($id, $name, $username, $role, $securityType, $entity, $departmentId, $accountStatus);
                 }
 
                 $flash = 'User updated successfully.';
@@ -176,4 +196,20 @@ class UsersService
     {
         return $this->model->getAllUsers();
     }
+
+    /**
+     * Resolve a local department ID from a department name returned by the API.
+     */
+    private function departmentIdByName(string $name): int
+    {
+        $name = trim($name);
+        if ($name === '') return 0;
+        $row = db_fetch_one(
+            'SELECT id FROM departments WHERE LOWER(name) = ? LIMIT 1',
+            's',
+            [strtolower($name)]
+        );
+        return $row ? (int)$row['id'] : 0;
+    }
 }
+

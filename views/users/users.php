@@ -106,7 +106,7 @@ function getUserStatusBadge($status) {
                         <?php foreach ($users as $u): ?>
                             <tr>
                                 <td class="font-medium"><?php echo htmlspecialchars($u['name']); ?></td>
-                                <td class="font-mono text-xs text-muted-foreground"><?php echo htmlspecialchars($u['employee_id'] ?? '—'); ?></td>
+                                <td class="font-mono text-xs text-muted-foreground"><?php echo htmlspecialchars($u['employee_no'] ?? '—'); ?></td>
                                 <td class="font-mono text-xs"><?php echo htmlspecialchars($u['username']); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars(str_replace('_', ' ', $u['role'])); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars($u['department_name'] ?? '—'); ?></td>
@@ -117,13 +117,13 @@ function getUserStatusBadge($status) {
                                             onclick="UsersPage.openEditModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
                                                 'id' => (int)$u['id'],
-                                                'employee_id' => (string)($u['employee_id'] ?? ''),
+                                                'employee_no' => (string)($u['employee_no'] ?? ''),
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
                                                 'role' => (string)$u['role'],
                                                 'department_id' => (int)($u['department_id'] ?? 0),
                                                 'security_type' => (string)($u['security_type'] ?? ''),
-                                                'building' => (string)($u['building'] ?? ''),
+                                                'entity' => (string)($u['entity'] ?? ''),
                                                 'account_status' => (string)($u['account_status'] ?? 'active')
                                             ]), ENT_QUOTES, 'UTF-8'); ?>">
                                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
@@ -284,10 +284,10 @@ function getUserStatusBadge($status) {
                                 </select>
                             </div>
 
-                            <div id="add-building-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                                <select name="building" class="form-select form-select-sm" id="add-building">
-                                    <option value="" selected disabled>Select building</option>
+                            <div id="add-entity-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Entity</label>
+                                <select name="entity" class="form-select form-select-sm" id="add-entity">
+                                    <option value="" selected disabled>Select entity</option>
                                     <option value="NCFL">NCFL</option>
                                     <option value="NPFL">NPFL</option>
                                 </select>
@@ -373,10 +373,10 @@ function getUserStatusBadge($status) {
                             </select>
                         </div>
 
-                        <div id="edit-building-wrap" class="hidden col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                            <select name="building" class="form-select form-select-sm" id="edit-building">
-                                <option value="" selected disabled>Select building</option>
+                        <div id="edit-entity-wrap" class="hidden col-12 col-md-6">
+                            <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Entity</label>
+                            <select name="entity" class="form-select form-select-sm" id="edit-entity">
+                                <option value="" selected disabled>Select entity</option>
                                 <option value="NCFL">NCFL</option>
                                 <option value="NPFL">NPFL</option>
                             </select>
@@ -707,12 +707,12 @@ function getUserStatusBadge($status) {
       if (!roleEl) return;
       const role = roleEl.value;
 
-      const deptWrap     = document.getElementById(prefix + '-department-wrap');
-      const deptSelect   = document.getElementById(prefix + '-department-id');
-      const secWrap      = document.getElementById(prefix + '-security-type-wrap');
-      const secSelect    = document.getElementById(prefix + '-security-type');
-      const buildingWrap = document.getElementById(prefix + '-building-wrap');
-      const buildingSelect = document.getElementById(prefix + '-building');
+      const deptWrap    = document.getElementById(prefix + '-department-wrap');
+      const deptSelect  = document.getElementById(prefix + '-department-id');
+      const secWrap     = document.getElementById(prefix + '-security-type-wrap');
+      const secSelect   = document.getElementById(prefix + '-security-type');
+      const entityWrap  = document.getElementById(prefix + '-entity-wrap');
+      const entitySelect = document.getElementById(prefix + '-entity');
 
       const isDepartment = role === 'department';
       const isSecurity   = role === 'security';
@@ -725,9 +725,9 @@ function getUserStatusBadge($status) {
       if (secSelect) secSelect.required = isSecurity;
       if (!isSecurity && secSelect) secSelect.value = '';
 
-      if (buildingWrap) buildingWrap.classList.toggle('hidden', !isSecurity);
-      if (buildingSelect) buildingSelect.required = isSecurity;
-      if (!isSecurity && buildingSelect) buildingSelect.value = '';
+      if (entityWrap) entityWrap.classList.toggle('hidden', !isSecurity);
+      if (entitySelect) entitySelect.required = isSecurity;
+      if (!isSecurity && entitySelect) entitySelect.value = '';
     },
 
     // ── Edit modal ────────────────────────────────────────────────────────
@@ -761,8 +761,8 @@ function getUserStatusBadge($status) {
       const secSelect = document.getElementById('edit-security-type');
       if (secSelect) secSelect.value = user.security_type || '';
 
-      const buildingSelect = document.getElementById('edit-building');
-      if (buildingSelect) buildingSelect.value = user.building || '';
+      const entitySelect = document.getElementById('edit-entity');
+      if (entitySelect) entitySelect.value = user.entity || '';
 
       this.syncConditionalFields('edit');
       this.toggleModal('edit-user-modal');

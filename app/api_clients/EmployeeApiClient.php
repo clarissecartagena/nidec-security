@@ -301,6 +301,11 @@ class EmployeeApiClient
      * corresponding line below.  Only this method needs to change.
      * ───────────────────────────────────────────────────────────────────────
      *
+     * Fields used for role / entity auto-detection:
+     *   section    – "HUMAN RESOURCE, GA AND COMPLIANCE" → ga_staff
+     *   job_level  – "Security" (NCFL), "SEGURITY GUARD" (NPFL), "SUPPORT/PIC" → department
+     *   entity     – Company entity the employee belongs to (NCFL / NPFL)
+     *
      * @param  array<string, mixed> $raw
      * @return array<string, string>
      */
@@ -322,6 +327,10 @@ class EmployeeApiClient
             'email'       => strtolower(trim((string)(
                 $raw['email'] ?? $raw['email_address'] ?? ''
             ))),
+            // ── Additional fields for role / entity auto-detection ───────────
+            'section'     => trim((string)($raw['section']   ?? '')),
+            'job_level'   => trim((string)($raw['job_level'] ?? $raw['joblevel'] ?? $raw['job_grade'] ?? '')),
+            'entity'      => strtoupper(trim((string)($raw['entity'] ?? $raw['company'] ?? $raw['plant'] ?? ''))),
         ];
     }
 }

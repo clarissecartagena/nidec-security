@@ -28,7 +28,7 @@
  *       'password'      => 'Password123!',  // Test/initial password (plain text here, hashed on save)
  *       'role'          => 'ga_staff',      // One of: ga_president, ga_staff, security, department
  *       'security_type' => null,            // 'internal' or 'external' (security role only)
- *       'building'      => null,            // 'NCFL' or 'NPFL' (security role only)
+ *       'entity'       => null,            // 'NCFL' or 'NPFL' — fallback if API detection fails (security role only)
  *       'department_id' => null,            // Department ID (department role only)
  *   ]
  *
@@ -36,7 +36,7 @@
  * ─────
  *   ga_president  – GA President (highest authority)
  *   ga_staff      – GA Staff
- *   security      – Security personnel (requires security_type and building)
+ *   security      – Security personnel (requires security_type and entity)
  *   department    – Department representative (requires department_id)
  *
  * CREDENTIALS
@@ -83,7 +83,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'ga_president',
         'security_type' => null,
-        'building'      => null,
+        'entity'       => null,
         'department_id' => null,
     ],
 
@@ -94,7 +94,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'ga_staff',
         'security_type' => null,
-        'building'      => null,
+        'entity'       => null,
         'department_id' => null,
     ],
     [
@@ -103,7 +103,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'ga_staff',
         'security_type' => null,
-        'building'      => null,
+        'entity'       => null,
         'department_id' => null,
     ],
 
@@ -114,7 +114,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'security',
         'security_type' => 'external',
-        'building'      => 'NCFL',
+        'entity'       => 'NCFL',
         'department_id' => null,
     ],
     [
@@ -123,7 +123,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'security',
         'security_type' => 'internal',
-        'building'      => 'NCFL',
+        'entity'       => 'NCFL',
         'department_id' => null,
     ],
 
@@ -134,7 +134,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'security',
         'security_type' => 'internal',
-        'building'      => 'NPFL',
+        'entity'       => 'NPFL',
         'department_id' => null,
     ],
     [
@@ -143,7 +143,7 @@ return [
         'password'      => 'Password123!',
         'role'          => 'security',
         'security_type' => 'external',
-        'building'      => 'NPFL',
+        'entity'       => 'NPFL',
         'department_id' => null,
     ],
 

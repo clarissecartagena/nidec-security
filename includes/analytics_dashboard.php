@@ -7,7 +7,7 @@ if (!function_exists('app_url')) {
 $user = getUser();
 $role = (string)($user['role'] ?? '');
 $deptId = (int)($user['department_id'] ?? 0);
-$userBuilding = normalize_building($user['building'] ?? null);
+$userBuilding = normalize_building($user['entity'] ?? null);
 
 $canSeeAll = in_array($role, ['ga_president', 'ga_staff', 'security'], true);
 $canChooseBuilding = in_array($role, ['ga_president', 'ga_staff', 'department'], true);
