@@ -21,11 +21,25 @@ class ProfileController
         $flashType = 'success';
 
         // Fetch fresh user data from DB (session may not have email/signature_path)
-        $dbUser = db_fetch_one(
+        $dbUser = ($employeeNo !== '') ? db_fetch_one(
             'SELECT employee_no, name, email, signature_path, role, username, position, department FROM users WHERE employee_no = ? LIMIT 1',
             's',
             [$employeeNo]
-        );
+        ) : null;
+
+        // Fallback: stale sessions (created before schema migration) may have
+        // employee_no = '' — look up by username and refresh the session.
+        if (!$dbUser && !empty($currentUser['username'])) {
+            $dbUser = db_fetch_one(
+                'SELECT employee_no, name, email, signature_path, role, username, position, department FROM users WHERE username = ? LIMIT 1',
+                's',
+                [$currentUser['username']]
+            );
+            if ($dbUser) {
+                $employeeNo = $dbUser['employee_no'];
+                $_SESSION['user']['employee_no'] = $employeeNo;
+            }
+        }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = (string)($_POST['csrf_token'] ?? '');
@@ -63,6 +77,13 @@ class ProfileController
                 's',
                 [$employeeNo]
             );
+            if (!$dbUser && !empty($currentUser['username'])) {
+                $dbUser = db_fetch_one(
+                    'SELECT employee_no, name, email, signature_path, role, username, position, department FROM users WHERE username = ? LIMIT 1',
+                    's',
+                    [$currentUser['username']]
+                );
+            }
         }
 
         require_once __DIR__ . '/../../includes/header.php';

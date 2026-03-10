@@ -119,14 +119,14 @@ function notify_role(
     $types  = 's';
     $where  = "role = ? AND account_status = 'active'";
 
-    // Building scoping: security users are per-building.
+    // Building scoping: security users are per-entity (NCFL / NPFL).
     // If building is empty/unknown we log a warning and bail out rather than
     // spamming every security user across both sites.
     if ($role === 'security' && $reportId !== null) {
         $bRow     = db_fetch_one('SELECT building FROM reports WHERE id = ? LIMIT 1', 'i', [(int)$reportId]);
         $building = isset($bRow['building']) ? strtoupper(trim((string)$bRow['building'])) : '';
         if (in_array($building, ['NCFL', 'NPFL'], true)) {
-            $where   .= ' AND building = ?';
+            $where   .= ' AND entity = ?';
             $params[] = $building;
             $types   .= 's';
         } else {
