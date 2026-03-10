@@ -149,66 +149,75 @@ $signatureUrl  = $hasSignature ? htmlspecialchars(app_url($dbUser['signature_pat
 </main>
 
 <!-- ── Signature Upload Modal ──────────────────────────────────────────────── -->
-<div id="signature-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"
-     aria-labelledby="sig-modal-title" style="z-index:1050;">
-    <div class="modal-dialog" style="max-width:520px;">
-        <div class="modal-content">
+<div id="signature-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+     aria-labelledby="sig-modal-title">
+    <div class="modal modal--accent" style="max-width:520px;">
 
-            <div class="modal-header">
-                <h5 id="sig-modal-title" class="modal-title">
-                    <i class="bi bi-pen me-2"></i>Upload Signature
-                </h5>
-                <button type="button" class="btn-close" onclick="ProfilePage.closeSignatureModal()"
-                        aria-label="Close"></button>
+        <div class="modal-accent-header">
+            <div>
+                <h2 id="sig-modal-title" class="modal-accent-title">
+                    <i class="bi bi-pen me-2" aria-hidden="true"></i>Upload Signature
+                </h2>
+                <p class="modal-accent-subtitle">One-time upload — cannot be changed after confirmation</p>
+            </div>
+            <button type="button" class="modal-accent-close" aria-label="Close"
+                    onclick="ProfilePage.closeSignatureModal()">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="modal-accent-body">
+
+            <!-- Instructions -->
+            <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+                <div>
+                    <strong>Important — please read before uploading:</strong>
+                    <ul class="mb-0 mt-1 ps-3">
+                        <li>Remove the background of your signature image before uploading (use a transparent PNG).</li>
+                            <li>Accepted formats: PNG, JPG, GIF, WebP (max 10 MB).</li>
+                        <li><strong>This upload is final and cannot be changed once confirmed.</strong></li>
+                    </ul>
+                </div>
             </div>
 
-            <div class="modal-body">
-                <!-- Instructions -->
-                <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
-                    <div>
-                        <strong>Important — please read before uploading:</strong>
-                        <ul class="mb-0 mt-1 ps-3">
-                            <li>Remove the background of your signature image before uploading (use a transparent PNG).</li>
-                            <li>Accepted formats: PNG, JPG, GIF, WebP (max 2 MB).</li>
-                            <li><strong>This upload is final and cannot be changed once confirmed.</strong></li>
-                        </ul>
-                    </div>
-                </div>
+            <!-- File picker -->
+            <div class="mb-3">
+                <label class="form-label fw-medium" for="sig-file-input">
+                    Select signature image
+                </label>
+                <input type="file" id="sig-file-input" class="form-control"
+                       accept="image/png,image/jpeg,image/gif,image/webp"
+                       onchange="ProfilePage.previewSignature(this)" />
+            </div>
 
-                <!-- File picker -->
-                <div class="mb-3">
-                    <label class="form-label fw-medium" for="sig-file-input">
-                        Select signature image
-                    </label>
-                    <input type="file" id="sig-file-input" class="form-control"
-                           accept="image/png,image/jpeg,image/gif,image/webp"
-                           onchange="ProfilePage.previewSignature(this)" />
+            <!-- Preview card -->
+            <div id="sig-preview-wrap" class="hidden mb-3">
+                <p class="text-sm text-muted-foreground mb-2">Preview — how your signature will look on the report:</p>
+                <div class="border rounded p-3 bg-body-tertiary d-flex flex-column align-items-center gap-1"
+                     style="min-height:110px;">
+                    <img id="sig-preview-img" src="" alt="Signature preview"
+                         style="max-height:80px; max-width:220px; object-fit:contain;" />
+                    <span class="fw-semibold text-foreground mt-1" style="font-size:0.9rem; letter-spacing:0.05em;">
+                        <?php echo htmlspecialchars(strtoupper($dbUser['name'] ?? '')); ?>
+                    </span>
                 </div>
+            </div>
 
-                <!-- Preview card -->
-                <div id="sig-preview-wrap" class="hidden mb-3">
-                    <p class="text-sm text-muted-foreground mb-2">Preview — how your signature will look on the report:</p>
-                    <div class="border rounded p-3 bg-body-tertiary d-flex flex-column align-items-center gap-1"
-                         style="min-height:110px;">
-                        <img id="sig-preview-img" src="" alt="Signature preview"
-                             style="max-height:80px; max-width:220px; object-fit:contain;" />
-                        <span class="fw-semibold text-foreground mt-1" style="font-size:0.9rem; letter-spacing:0.05em;">
-                            <?php echo htmlspecialchars(strtoupper($dbUser['name'] ?? '')); ?>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Confirmation checkbox -->
-                <div id="sig-confirm-wrap" class="hidden form-check mb-2">
-                    <input type="checkbox" id="sig-confirm-check" class="form-check-input"
+            <!-- Confirmation checkbox — shown after preview is loaded -->
+            <div id="sig-confirm-wrap" class="hidden mb-3">
+                <div class="form-check d-flex align-items-center gap-2">
+                    <input type="checkbox" id="sig-confirm-check"
+                           class="form-check-input flex-shrink-0"
+                           style="width:1.25rem; height:1.25rem; cursor:pointer; margin-top:0;"
                            onchange="ProfilePage.toggleUploadBtn()" />
-                    <label class="form-check-label text-sm" for="sig-confirm-check">
-                        I understand this signature cannot be changed once uploaded.
+                    <label class="form-check-label" for="sig-confirm-check" style="cursor:pointer;">
+                        I understand that this signature <strong class="text-danger">cannot be changed</strong> once uploaded.
                     </label>
                 </div>
             </div>
 
+            <!-- Footer actions -->
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary"
                         onclick="ProfilePage.closeSignatureModal()">Cancel</button>
@@ -222,16 +231,6 @@ $signatureUrl  = $hasSignature ? htmlspecialchars(app_url($dbUser['signature_pat
     </div>
 </div>
 
-<style>
-.modal-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.5);
-    display: flex; align-items: center; justify-content: center;
-    padding: 1rem;
-}
-.modal-backdrop.hidden { display: none; }
-</style>
-
 <script>
 const ProfilePage = {
     openSignatureModal() {
@@ -240,22 +239,26 @@ const ProfilePage = {
         document.getElementById('sig-confirm-wrap').classList.add('hidden');
         document.getElementById('sig-confirm-check').checked = false;
         document.getElementById('sig-upload-btn').disabled = true;
-        document.getElementById('signature-modal').classList.remove('hidden');
+        const overlay = document.getElementById('signature-modal');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('active');
     },
 
     closeSignatureModal() {
-        document.getElementById('signature-modal').classList.add('hidden');
+        const overlay = document.getElementById('signature-modal');
+        overlay.classList.remove('active');
+        overlay.classList.add('hidden');
     },
 
     previewSignature(input) {
         const file = input.files[0];
         const previewWrap = document.getElementById('sig-preview-wrap');
-        const confirmWrap = document.getElementById('sig-confirm-wrap');
         const img         = document.getElementById('sig-preview-img');
 
         if (!file) {
             previewWrap.classList.add('hidden');
-            confirmWrap.classList.add('hidden');
+            document.getElementById('sig-confirm-wrap').classList.add('hidden');
+            document.getElementById('sig-confirm-check').checked = false;
             document.getElementById('sig-upload-btn').disabled = true;
             return;
         }
@@ -265,14 +268,18 @@ const ProfilePage = {
             alert('Invalid file type. Please select a PNG, JPG, GIF, or WebP image.');
             input.value = '';
             previewWrap.classList.add('hidden');
-            confirmWrap.classList.add('hidden');
+            document.getElementById('sig-confirm-wrap').classList.add('hidden');
+            document.getElementById('sig-confirm-check').checked = false;
+            document.getElementById('sig-upload-btn').disabled = true;
             return;
         }
-        if (file.size > 2 * 1024 * 1024) {
-            alert('File is too large. Maximum size is 2 MB.');
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File is too large. Maximum size is 10 MB.');
             input.value = '';
             previewWrap.classList.add('hidden');
-            confirmWrap.classList.add('hidden');
+            document.getElementById('sig-confirm-wrap').classList.add('hidden');
+            document.getElementById('sig-confirm-check').checked = false;
+            document.getElementById('sig-upload-btn').disabled = true;
             return;
         }
 
@@ -280,6 +287,7 @@ const ProfilePage = {
         reader.onload = (e) => {
             img.src = e.target.result;
             previewWrap.classList.remove('hidden');
+            const confirmWrap = document.getElementById('sig-confirm-wrap');
             confirmWrap.classList.remove('hidden');
             document.getElementById('sig-confirm-check').checked = false;
             document.getElementById('sig-upload-btn').disabled = true;
