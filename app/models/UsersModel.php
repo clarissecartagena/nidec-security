@@ -12,14 +12,15 @@ class UsersModel
     /**
      * Insert a new user whose identity has been verified via the Employee API.
      *
-     * $employeeNo, $name, $email, $position come from the API response — they
-     * are never sourced from raw POST data to prevent spoofing.
+     * $employeeNo, $name, $email, $position, $department come from the API
+     * response — they are never sourced from raw POST data to prevent spoofing.
      */
     public function insertUser(
         string $employeeNo,
         string $name,
         string $email,
         string $position,
+        string $department,
         string $username,
         string $passwordHash,
         string $role,
@@ -30,15 +31,15 @@ class UsersModel
     ): void {
         db_execute(
             'INSERT INTO users
-                 (employee_no, name, email, position, username, password_hash,
+                 (employee_no, name, email, position, department, username, password_hash,
                   role, security_type, entity, department_id, account_status)
              VALUES
-                 (NULLIF(?,\'\'), ?, NULLIF(?,\'\'), NULLIF(?,\'\'),
+                 (NULLIF(?,\'\'), ?, NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,\'\'),
                   ?, ?, ?,
                   NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,0), ?)',
             '',
             [
-                $employeeNo, $name, $email, $position,
+                $employeeNo, $name, $email, $position, $department,
                 $username, $passwordHash, $role,
                 $securityType, $entity, $departmentId, $accountStatus,
             ]

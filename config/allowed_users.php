@@ -9,8 +9,9 @@
  * corporate login API for the first time (and does not yet have a local
  * account), the system will automatically:
  *   1. Look up their profile in the Employee API.
- *   2. Create a local user account using their API data.
- *   3. Assign the role and settings defined here.
+ *   2. Derive their username from their fullname (first-initial.lastname).
+ *   3. Auto-detect role, entity, and department from the API data.
+ *   4. Create a local user account.
  *
  * Alternatively, run the provisioning tool to create accounts in advance
  * (useful for development/testing without needing the corporate API login):
@@ -20,28 +21,30 @@
  * ──────────────────────────────────────────────────────────────────────────
  * HOW TO ADD AN EMPLOYEE
  * ──────────────────────
- * Add a new entry to the array below:
+ * Add a new entry to the array below with only the employee number and
+ * an initial password.  All other details (name, role, department, entity)
+ * are fetched automatically from the Employee API.
  *
  *   [
- *       'employee_id'   => '123456',        // Employee ID from the corporate system
- *       'username'      => 'j.doe',         // Login username
- *       'password'      => 'Password123!',  // Test/initial password (plain text here, hashed on save)
- *       'role'          => 'ga_staff',      // One of: ga_president, ga_staff, security, department
- *       'security_type' => null,            // 'internal' or 'external' (security role only)
- *       'entity'       => null,            // 'NCFL' or 'NPFL' — fallback if API detection fails (security role only)
- *       'department_id' => null,            // Department ID (department role only)
+ *       'employee_no' => '123456',        // Employee ID from the corporate system
+ *       'password'    => 'Password123!',  // Initial/test password (plain text here, hashed on save)
  *   ]
  *
- * ROLES
- * ─────
- *   ga_president  – GA President (highest authority)
- *   ga_staff      – GA Staff
- *   security      – Security personnel (requires security_type and entity)
- *   department    – Department representative (requires department_id)
+ * ROLES (auto-detected from Employee API)
+ * ────────────────────────────────────────
+ *   ga_president  – GA President (employee_no === '300553')
+ *   ga_staff      – section === 'HUMAN RESOURCE, GA AND COMPLIANCE'
+ *   security      – job_level === 'Security' (NCFL) or 'SEGURITY GUARD' (NPFL)
+ *   department    – job_level === 'SUPPORT/PIC'
+ *
+ * USERNAME (auto-generated from Employee API fullname)
+ * ─────────────────────────────────────────────────────
+ * Username is derived from the employee's fullname returned by the API
+ * using the pattern "firstinitial.lastname" (e.g. "ENRIQUEZ, KATHY" → "k.enriquez").
+ * Falls back to the employee number if the name cannot be parsed.
  *
  * CREDENTIALS
  * ───────────
- * The 'username' is what the employee types on the login page.
  * The 'password' is stored as a bcrypt hash — the plain text here is only
  * used during account creation/provisioning and is never stored as-is.
  *
@@ -55,97 +58,60 @@
  * In production, employees authenticate exclusively via the corporate
  * login API — no local password is required.
  *
- * NOTE: The employee's name, email, and position are always fetched from the
- * Employee API and are never stored here.
- *
  * ──────────────────────────────────────────────────────────────────────────
  * TEST CREDENTIALS SUMMARY
  * ─────────────────────────────────────────────────────────────────────────
  * All accounts below use the password: Password123!
  *
- *  Username         Role          Building / Dept
- *  ─────────────── ────────────  ────────────────────────
- *  k.enriquez       ga_president  —
- *  l.acosta         ga_staff      —
- *  c.buenconsejo    ga_staff      —
- *  b.esteban        security      NCFL / external
- *  e.corrales       security      NCFL / internal
- *  c.provido        security      NPFL / internal
- *  j.ruazol         security      NPFL / external
+ *  Employee No   Auto-detected Role   Auto-generated Username
+ *  ──────────── ─────────────────    ──────────────────────────
+ *  300553        ga_president         k.enriquez
+ *  401157        ga_staff             l.acosta
+ *  1200385       ga_staff             c.buenconsejo
+ *  8810183       security (NCFL)      b.esteban
+ *  8810305       security (NCFL)      e.corrales
+ *  8810279       security (NPFL)      c.provido
+ *  8810222       security (NPFL)      j.ruazol
  * ──────────────────────────────────────────────────────────────────────────
  */
 
 return [
     // ── GA President ──────────────────────────────────────────────────────
     [
-        'employee_id'   => '300553',
-        'username'      => 'k.enriquez',
-        'password'      => 'Password123!',
-        'role'          => 'ga_president',
-        'security_type' => null,
-        'entity'       => null,
-        'department_id' => null,
+        'employee_no' => '300553',
+        'password'    => 'Password123!',
     ],
 
     // ── GA Staff ──────────────────────────────────────────────────────────
     [
-        'employee_id'   => '401157',
-        'username'      => 'l.acosta',
-        'password'      => 'Password123!',
-        'role'          => 'ga_staff',
-        'security_type' => null,
-        'entity'       => null,
-        'department_id' => null,
+        'employee_no' => '401157',
+        'password'    => 'Password123!',
     ],
     [
-        'employee_id'   => '1200385',
-        'username'      => 'c.buenconsejo',
-        'password'      => 'Password123!',
-        'role'          => 'ga_staff',
-        'security_type' => null,
-        'entity'       => null,
-        'department_id' => null,
+        'employee_no' => '1200385',
+        'password'    => 'Password123!',
     ],
 
     // ── Security – NCFL ───────────────────────────────────────────────────
     [
-        'employee_id'   => '8810183',
-        'username'      => 'b.esteban',
-        'password'      => 'Password123!',
-        'role'          => 'security',
-        'security_type' => 'external',
-        'entity'       => 'NCFL',
-        'department_id' => null,
+        'employee_no' => '8810183',
+        'password'    => 'Password123!',
     ],
     [
-        'employee_id'   => '8810305',
-        'username'      => 'e.corrales',
-        'password'      => 'Password123!',
-        'role'          => 'security',
-        'security_type' => 'internal',
-        'entity'       => 'NCFL',
-        'department_id' => null,
+        'employee_no' => '8810305',
+        'password'    => 'Password123!',
     ],
 
     // ── Security – NPFL ───────────────────────────────────────────────────
     [
-        'employee_id'   => '8810279',
-        'username'      => 'c.provido',
-        'password'      => 'Password123!',
-        'role'          => 'security',
-        'security_type' => 'internal',
-        'entity'       => 'NPFL',
-        'department_id' => null,
+        'employee_no' => '8810279',
+        'password'    => 'Password123!',
     ],
     [
-        'employee_id'   => '8810222',
-        'username'      => 'j.ruazol',
-        'password'      => 'Password123!',
-        'role'          => 'security',
-        'security_type' => 'external',
-        'entity'       => 'NPFL',
-        'department_id' => null,
+        'employee_no' => '8810222',
+        'password'    => 'Password123!',
     ],
 
     // ── Add more employees below ──────────────────────────────────────────
 ];
+

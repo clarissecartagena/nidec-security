@@ -39,6 +39,7 @@ CREATE TABLE users (
   name            VARCHAR(120) NOT NULL,         -- fullname from API
   email           VARCHAR(150) NULL,             -- work email from API
   position        VARCHAR(100) NULL,             -- job title from API
+  department      VARCHAR(120) NULL,             -- department name from API
   -- ──────────────────────────────────────────────────────────────────
 
   username        VARCHAR(60)  NOT NULL,

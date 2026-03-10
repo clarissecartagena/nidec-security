@@ -11,9 +11,10 @@ require_once __DIR__ . '/../models/UsersModel.php';
  * When an employee in the allowed list authenticates via the corporate login
  * API but does not yet have a local account, this service:
  *   1. Looks up their profile data in the Employee API.
- *   2. Auto-detects their role and entity from the API data.
- *   3. Inserts a new active account in the local `users` table.
- *   4. Returns the newly created user record.
+ *   2. Derives their username from the API fullname (firstinitial.lastname).
+ *   3. Auto-detects their role, entity, and department from the API data.
+ *   4. Inserts a new active account in the local `users` table.
+ *   5. Returns the newly created user record.
  *
  * Role detection (via EmployeeService::detectRoleFromEmployee()):
  *   GA President  – employee_no === '300553'
@@ -63,7 +64,7 @@ class AllowedUsersService
      * Returns the configuration for an allowed employee, or null when
      * the employee number is not in the list.
      *
-     * @return array{employee_no:string, role:?string, security_type:?string, entity:?string, department_id:?int}|null
+     * @return array{employee_no:string, password:?string}|null
      */
     public function getConfig(string $employeeNo): ?array
     {
@@ -84,8 +85,9 @@ class AllowedUsersService
      *   1. Verify the employee_no is in the allowed list.
      *   2. Fetch the employee's profile from the Employee API.
      *   3. Auto-detect role and entity from the API data.
-     *   4. Insert a new active account into the local `users` table.
-     *   5. Return the newly created user record (ready for session creation).
+     *   4. Derive username from the employee's fullname (firstinitial.lastname).
+     *   5. Insert a new active account into the local `users` table.
+     *   6. Return the newly created user record (ready for session creation).
      *
      * @param  string $employeeNo  The employee number returned by the login API.
      * @param  string $username    The username the employee used to log in (fallback).
@@ -96,12 +98,6 @@ class AllowedUsersService
         $config = $this->getConfig($employeeNo);
         if ($config === null) {
             return null;
-        }
-
-        // Prefer the username from the config; fall back to the login-time username.
-        $resolvedUsername = trim((string)($config['username'] ?? ''));
-        if ($resolvedUsername === '') {
-            $resolvedUsername = $username;
         }
 
         // Hash the configured test password, or leave empty (API-only auth).
@@ -117,25 +113,25 @@ class AllowedUsersService
 
         // ── Determine role + entity from Employee API data ────────────────
         $detected = EmployeeService::detectRoleFromEmployee($emp);
+        if ($detected === null) {
+            // Employee is not eligible for any system role.
+            return null;
+        }
+        $role   = $detected['role'];
+        $entity = $detected['entity'];
 
-        // Fall back to config-specified role if API detection fails (e.g. mock data).
-        if ($detected !== null) {
-            $role   = $detected['role'];
-            $entity = $detected['entity'];
-        } else {
-            $role   = (string)($config['role'] ?? 'department');
-            $entity = (string)($config['entity'] ?? $config['building'] ?? '');
+        // ── Derive username from API fullname (firstinitial.lastname) ─────
+        $resolvedUsername = self::generateUsername((string)($emp['fullname'] ?? ''));
+        // Fall back to the login-time username if name parsing fails.
+        if ($resolvedUsername === '') {
+            $resolvedUsername = $username !== '' ? $username : $employeeNo;
         }
 
-        // security_type can only come from config (not from the Employee API).
-        $securityType = (string)($config['security_type'] ?? '');
-        $departmentId = (int)($config['department_id']    ?? 0);
+        // security_type is not derivable from the Employee API alone;
+        // default to 'internal' and let GA Staff/President update it if needed.
+        $securityType = $role === 'security' ? 'internal' : '';
 
-        // If department_id is not set in config, try to resolve it from the
-        // department name returned by the Employee API.
-        if ($departmentId === 0) {
-            $departmentId = $this->departmentIdByName((string)($emp['department'] ?? ''));
-        }
+        $departmentId = $this->departmentIdByName((string)($emp['department'] ?? ''));
 
         try {
             $this->usersModel->insertUser(
@@ -143,6 +139,7 @@ class AllowedUsersService
                 (string)($emp['fullname']    ?? ''),
                 (string)($emp['email']       ?? ''),
                 (string)($emp['position']    ?? ''),
+                (string)($emp['department']  ?? ''),
                 $resolvedUsername,
                 $passwordHash,
                 $role,
@@ -161,13 +158,35 @@ class AllowedUsersService
     }
 
     // ──────────────────────────────────────────────────────────────────────
-    // Private helpers
+    // Public helpers
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Resolve a local department ID from a department name string returned
-     * by the Employee API.  Returns 0 when no match is found.
+     * Generate a username from an employee's fullname.
+     *
+     * Expects the "LASTNAME, FIRSTNAME" format used by the company HR system.
+     * Returns "firstinitial.lastname" in lowercase (e.g. "k.enriquez").
+     * Returns an empty string when the name cannot be parsed.
      */
+    public static function generateUsername(string $fullname): string
+    {
+        $fullname = trim($fullname);
+        if ($fullname === '' || strpos($fullname, ',') === false) {
+            return '';
+        }
+        [$last, $first] = explode(',', $fullname, 2);
+        $last    = strtolower(trim($last));
+        $first   = strtolower(trim($first));
+        $initial = $first !== '' ? mb_substr($first, 0, 1) : '';
+        if ($initial !== '' && $last !== '') {
+            return $initial . '.' . $last;
+        }
+        return '';
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────────────
     private function departmentIdByName(string $name): int
     {
         $name = trim($name);
@@ -182,4 +201,5 @@ class AllowedUsersService
         return $row ? (int)$row['id'] : 0;
     }
 }
+
 
