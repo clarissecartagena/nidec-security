@@ -34,6 +34,21 @@ if (!csrf_validate($token)) {
 
 $currentUser = getUser();
 $employeeNo  = (string)($currentUser['employee_no'] ?? '');
+
+// Fallback: stale sessions (created before schema migration) may have
+// employee_no = '' — look up by username and refresh the session.
+if ($employeeNo === '' && !empty($currentUser['username'])) {
+    $sessionUser = db_fetch_one(
+        'SELECT employee_no FROM users WHERE username = ? LIMIT 1',
+        's',
+        [$currentUser['username']]
+    );
+    if ($sessionUser) {
+        $employeeNo = $sessionUser['employee_no'];
+        $_SESSION['user']['employee_no'] = $employeeNo;
+    }
+}
+
 if ($employeeNo === '') {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
@@ -66,10 +81,10 @@ if (empty($_FILES['signature']) || $_FILES['signature']['error'] !== UPLOAD_ERR_
 }
 
 $file     = $_FILES['signature'];
-$maxBytes = 2 * 1024 * 1024; // 2 MB
+$maxBytes = 10 * 1024 * 1024; // 10 MB
 if ($file['size'] > $maxBytes) {
     http_response_code(400);
-    echo json_encode(['error' => 'File exceeds maximum size of 2 MB.']);
+    echo json_encode(['error' => 'File exceeds maximum size of 10 MB.']);
     exit;
 }
 
