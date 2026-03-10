@@ -1,3 +1,21 @@
+-- ==================================================================
+-- NidecSecurity — Full Database Schema
+-- ==================================================================
+-- This is the authoritative schema for fresh installations.
+-- It incorporates all migrations up through:
+--   001 — Employee API fields (email, position, role enum fix)
+--   002 — Rename users.building → entity, employee_id → employee_no
+--   003 — Add users.department column
+--   004 — Make employee_no the PRIMARY KEY, drop legacy id column,
+--          update all FK columns to VARCHAR(50)
+--   005 — Add users.signature_path column
+--
+-- For fresh installations: import this file, then optionally import
+-- database/seed.sql for demo/test data.
+-- For existing installations: run the numbered migration files in
+-- database/migrations/ in order instead.
+-- ==================================================================
+
 SET NAMES utf8mb4;
 
 -- ==================================================================
