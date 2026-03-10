@@ -11,7 +11,7 @@ class AssignedReportsService
         $this->model = $model ?: new AssignedReportsModel();
     }
 
-    public function handlePost(array $post, int $userId, int $departmentId): array
+    public function handlePost(array $post, string $userId, int $departmentId): array
     {
         $token = (string)($post['csrf_token'] ?? '');
         $action = trim((string)($post['action'] ?? ''));

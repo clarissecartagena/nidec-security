@@ -28,7 +28,7 @@ class FinalCheckingController
             exit;
         }
 
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $res = $this->service->handlePost($_POST, $uid);

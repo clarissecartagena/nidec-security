@@ -11,7 +11,7 @@ class ReturnedReportsService
         $this->model = $model ?: new ReturnedReportsModel();
     }
 
-    public function handlePost(array $post, int $userId): array
+    public function handlePost(array $post, string $userId): array
     {
         $action = (string)($post['action'] ?? '');
         $reportNo = trim((string)($post['report_no'] ?? ''));

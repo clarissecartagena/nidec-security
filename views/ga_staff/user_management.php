@@ -11,14 +11,14 @@ $flash = null;
 $flashType = 'success';
 
 $currentUser = getUser();
-$currentUserId = (int)($currentUser['id'] ?? 0);
+$currentUserEmployeeNo = (string)($currentUser['employee_no'] ?? '');
 
 $departmentsDb = fetch_departments();
 
 function has_user_audit_columns(): bool {
     try {
         $a = db_fetch_one("SHOW COLUMNS FROM users LIKE 'created_by_role'");
-        $b = db_fetch_one("SHOW COLUMNS FROM users LIKE 'created_by_user_id'");
+        $b = db_fetch_one("SHOW COLUMNS FROM users LIKE 'created_by_employee_no'");
         return (bool)$a && (bool)$b;
     } catch (Throwable $e) {
         return false;
@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "INSERT INTO users
                          (employee_no, name, email, position, department, username, password_hash,
                           role, department_id, security_type, entity, account_status,
-                          created_by_role, created_by_user_id)
+                          created_by_role, created_by_employee_no)
                      VALUES
                          (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
                           ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
@@ -125,13 +125,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $emp['email'],       $emp['position'],
                         $emp['department'],  $username,  $hash,
                         $role, $departmentId, $securityType, $entity, $accountStatus,
-                        $currentUserId,
+                        $currentUserEmployeeNo,
                     ]
                 );
 
                 $flash = 'User added successfully.';
             } elseif ($action === 'update') {
-                $id = (int)($_POST['id'] ?? 0);
+                $employeeNo = trim($_POST['id'] ?? '');
                 $name = trim($_POST['name'] ?? '');
                 $username = trim($_POST['username'] ?? '');
                 $password = (string)($_POST['password'] ?? '');
@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $entity = (string)($_POST['entity'] ?? '');
                 $accountStatus = (string)($_POST['account_status'] ?? 'active');
 
-                if ($id <= 0 || $name === '' || $username === '') {
+                if ($employeeNo === '' || $name === '' || $username === '') {
                     throw new RuntimeException('Invalid update request.');
                 }
 
@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Only allow editing of Security/Department users
-                $existing = db_fetch_one('SELECT id, role FROM users WHERE id = ? LIMIT 1', 'i', [$id]);
+                $existing = db_fetch_one('SELECT employee_no, role FROM users WHERE employee_no = ? LIMIT 1', 's', [$employeeNo]);
                 if (!$existing || !in_array(($existing['role'] ?? ''), ['security', 'department'], true)) {
                     throw new RuntimeException('Access denied.');
                 }
@@ -179,30 +179,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($password !== '') {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
                     db_execute(
-                        'UPDATE users SET name=?, username=?, password_hash=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE id=?',
-                        'ssssisssi',
-                        [$name, $username, $hash, $role, $departmentId, $securityType, $entity, $accountStatus, $id]
+                        'UPDATE users SET name=?, username=?, password_hash=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE employee_no=?',
+                        'ssssissss',
+                        [$name, $username, $hash, $role, $departmentId, $securityType, $entity, $accountStatus, $employeeNo]
                     );
                 } else {
                     db_execute(
-                        'UPDATE users SET name=?, username=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE id=?',
-                        'sssisssi',
-                        [$name, $username, $role, $departmentId, $securityType, $entity, $accountStatus, $id]
+                        'UPDATE users SET name=?, username=?, role=?, department_id=NULLIF(?,0), security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), account_status=? WHERE employee_no=?',
+                        'sssissss',
+                        [$name, $username, $role, $departmentId, $securityType, $entity, $accountStatus, $employeeNo]
                     );
                 }
 
                 $flash = 'User updated successfully.';
             } elseif ($action === 'delete') {
-                $id = (int)($_POST['id'] ?? 0);
-                if ($id <= 0) throw new RuntimeException('Invalid request.');
-                if ($id === $currentUserId) throw new RuntimeException('You cannot delete your own account.');
+                $employeeNo = trim($_POST['id'] ?? '');
+                if ($employeeNo === '') throw new RuntimeException('Invalid request.');
+                if ($employeeNo === $currentUserEmployeeNo) throw new RuntimeException('You cannot delete your own account.');
 
-                $row = db_fetch_one('SELECT id, role FROM users WHERE id = ? LIMIT 1', 'i', [$id]);
+                $row = db_fetch_one('SELECT employee_no, role FROM users WHERE employee_no = ? LIMIT 1', 's', [$employeeNo]);
                 if (!$row || !in_array(($row['role'] ?? ''), ['security', 'department'], true)) {
                     throw new RuntimeException('Access denied.');
                 }
 
-                db_execute('DELETE FROM users WHERE id = ? LIMIT 1', 'i', [$id]);
+                db_execute('DELETE FROM users WHERE employee_no = ? LIMIT 1', 's', [$employeeNo]);
                 $flash = 'User deleted successfully.';
             } else {
                 throw new RuntimeException('Unknown action.');
@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = db_fetch_all(
-    "SELECT u.id, u.employee_no, u.name, u.username, u.role, u.department_id, u.security_type, u.entity, u.account_status, u.created_at, d.name AS department_name
+    "SELECT u.employee_no, u.name, u.username, u.role, u.department_id, u.security_type, u.entity, u.account_status, u.created_at, d.name AS department_name
      FROM users u
      LEFT JOIN departments d ON d.id = u.department_id
      WHERE u.role IN ('security','department')
@@ -250,7 +250,7 @@ function user_role_label(string $role): string {
 
         <?php if (!$auditOk): ?>
             <div class="alert alert-error mb-4">
-                Database audit columns are missing. Update your schema/migration to add <strong>users.created_by_role</strong> and <strong>users.created_by_user_id</strong>.
+                Database audit columns are missing. Update your schema/migration to add <strong>users.created_by_role</strong> and <strong>users.created_by_employee_no</strong>.
             </div>
         <?php endif; ?>
 
@@ -297,7 +297,7 @@ function user_role_label(string $role): string {
                                         <button type="button" class="icon-btn" title="Edit"
                                             onclick="UsersPage.openEditModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (int)$u['id'],
+                                                'id' => (string)$u['employee_no'],
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
                                                 'role' => (string)$u['role'],
@@ -314,7 +314,7 @@ function user_role_label(string $role): string {
                                         <button type="button" class="icon-btn" title="Delete"
                                             onclick="UsersPage.openDeleteModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (int)$u['id'],
+                                                'id' => (string)$u['employee_no'],
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
                                                 'role' => (string)$u['role'],
@@ -628,7 +628,7 @@ function user_role_label(string $role): string {
 
 <script>
     const UsersPage = window.UsersPage = {
-        currentUserId: <?php echo (int)$currentUserId; ?>,
+        currentUserId: <?php echo json_encode($currentUserEmployeeNo); ?>,
         _empApiUrl: '<?php echo htmlspecialchars(app_url('api/employee_search.php'), ENT_QUOTES, 'UTF-8'); ?>',
 
         toggleModal(modalId) {
@@ -937,14 +937,14 @@ function user_role_label(string $role): string {
             let user;
             try { user = JSON.parse(raw); } catch (e) { return; }
 
-            const id = Number(user.id) || 0;
-            document.getElementById('delete-user-id').value = String(id);
+            const id = String(user.id || '');
+            document.getElementById('delete-user-id').value = id;
             document.getElementById('delete-user-name').textContent = user.name || '—';
             document.getElementById('delete-user-username').textContent = user.username || '—';
             document.getElementById('delete-user-role').textContent = (user.role || '—').replace(/_/g, ' ');
             document.getElementById('delete-user-dept').textContent = user.department ? String(user.department) : '—';
 
-            const isSelf    = id > 0 && this.currentUserId === id;
+            const isSelf    = id !== '' && this.currentUserId === id;
             const warn      = document.getElementById('delete-self-warning');
             const submitBtn = document.getElementById('delete-user-submit');
             if (warn)      warn.classList.toggle('hidden', !isSelf);

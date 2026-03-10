@@ -31,7 +31,7 @@ class UsersController
         $departmentsDb = fetch_departments();
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            $res = $this->service->handlePost($_POST, (int)($currentUser['id'] ?? 0));
+            $res = $this->service->handlePost($_POST, (string)($currentUser['employee_no'] ?? ''));
             $flash = $res['flash'];
             $flashType = $res['flashType'];
         }

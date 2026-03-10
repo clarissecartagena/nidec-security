@@ -91,15 +91,15 @@ $sql = "SELECT
         sfc.closed_at
      FROM reports r
      JOIN departments d         ON d.id = r.responsible_department_id
-LEFT JOIN users u_submit        ON u_submit.id = r.submitted_by
+LEFT JOIN users u_submit        ON u_submit.employee_no = r.submitted_by
 LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
-LEFT JOIN users u_staff         ON u_staff.id = gasr.reviewed_by
+LEFT JOIN users u_staff         ON u_staff.employee_no = gasr.reviewed_by
 LEFT JOIN ga_president_approvals gapa ON gapa.report_id = r.id
-LEFT JOIN users u_pres          ON u_pres.id = gapa.decided_by
+LEFT JOIN users u_pres          ON u_pres.employee_no = gapa.decided_by
 LEFT JOIN department_actions da ON da.report_id = r.id
-LEFT JOIN users u_dept          ON u_dept.id = da.acted_by
+LEFT JOIN users u_dept          ON u_dept.employee_no = da.acted_by
 LEFT JOIN security_final_checks sfc ON sfc.report_id = r.id
-LEFT JOIN users u_sec           ON u_sec.id = sfc.checked_by
+LEFT JOIN users u_sec           ON u_sec.employee_no = sfc.checked_by
     WHERE r.report_no = ?";
 
 $sql .= $whereExtra . ' LIMIT 1';

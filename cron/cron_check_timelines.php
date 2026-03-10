@@ -51,14 +51,14 @@ function cron_notify_department_users(int $rid, int $deptId, string $message, in
         return 0;
     }
     $deptUsers = db_fetch_all(
-        "SELECT id FROM users WHERE role = 'department' AND account_status = 'active' AND department_id = ?",
+        "SELECT employee_no FROM users WHERE role = 'department' AND account_status = 'active' AND department_id = ?",
         'i',
         [$deptId]
     );
     $sent = 0;
     foreach ($deptUsers as $u) {
-        $uid = (int)($u['id'] ?? 0);
-        if ($uid <= 0) {
+        $uid = (string)($u['employee_no'] ?? '');
+        if ($uid === '') {
             continue;
         }
         notify_user($uid, $rid, $message, $dedupSeconds);
@@ -370,18 +370,18 @@ try {
         );
         $already = [];
         foreach ($alreadyRows as $ar) {
-            $already[(int)($ar['user_id'] ?? 0)] = true;
+            $already[(string)($ar['user_id'] ?? '')] = true;
         }
 
         $deptUsers = db_fetch_all(
-            "SELECT id FROM users WHERE role = 'department' AND account_status = 'active' AND department_id = ?",
+            "SELECT employee_no FROM users WHERE role = 'department' AND account_status = 'active' AND department_id = ?",
             'i',
             [$deptId]
         );
 
         foreach ($deptUsers as $u) {
-            $uid = (int)($u['id'] ?? 0);
-            if ($uid <= 0) continue;
+            $uid = (string)($u['employee_no'] ?? '');
+            if ($uid === '') continue;
             if (isset($already[$uid])) continue;
             notify_user($uid, $rid, $message);
             $results['updated']++;

@@ -44,7 +44,7 @@ class DashboardService
         ];
     }
 
-    public function getSecurityDashboardData(int $userId): array
+    public function getSecurityDashboardData(string $userId): array
     {
         $row = $this->model->getSecurityStatsForUser($userId);
         $stats = [

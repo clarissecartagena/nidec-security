@@ -11,8 +11,8 @@ if (!isAuthenticated()) {
 }
 
 $user = getUser();
-$uid = (int)($user['id'] ?? 0);
-if ($uid <= 0) {
+$uid = (string)($user['employee_no'] ?? '');
+if ($uid === '') {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
@@ -60,14 +60,14 @@ if ($method === 'GET') {
             . ' ORDER BY n.created_at DESC, n.id DESC'
             . ' LIMIT ' . (int)$limit . ' OFFSET ' . (int)$offset;
 
-        $items = db_fetch_all($sql, 'is', [$uid, $building]);
+        $items = db_fetch_all($sql, 'ss', [$uid, $building]);
 
         $row = db_fetch_one(
             'SELECT COUNT(*) AS c'
             . ' FROM notifications n'
             . ' LEFT JOIN reports r ON r.id = n.report_id'
             . ' WHERE n.user_id = ? AND n.is_read = 0 AND (n.report_id IS NULL OR r.building = ?)',
-            'is',
+            'ss',
             [$uid, $building]
         );
         $unread = (int)($row['c'] ?? 0);
@@ -83,7 +83,7 @@ if ($method === 'GET') {
             . ' ORDER BY n.created_at DESC, n.id DESC'
             . ' LIMIT ' . (int)$limit . ' OFFSET ' . (int)$offset;
 
-        $items = db_fetch_all($sql, 'i', [$uid]);
+        $items = db_fetch_all($sql, 's', [$uid]);
         $unread = notifications_unread_count($uid);
     }
 

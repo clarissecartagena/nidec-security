@@ -58,22 +58,22 @@ class ReturnedReportsModel
         );
     }
 
-    public function upsertGaStaffReview(int $reportId, int $userId, string $notes): void
+    public function upsertGaStaffReview(int $reportId, string $userId, string $notes): void
     {
         db_execute(
             "INSERT INTO ga_staff_reviews (report_id, reviewed_by, decision, notes, reviewed_at)
              VALUES (?, ?, 'forwarded', ?, NOW())
              ON DUPLICATE KEY UPDATE reviewed_by=VALUES(reviewed_by), decision=VALUES(decision), notes=VALUES(notes), reviewed_at=VALUES(reviewed_at)",
-            'iis',
+            'iss',
             [$reportId, $userId, $notes]
         );
     }
 
-    public function insertStatusHistory(int $reportId, int $userId, string $notes): void
+    public function insertStatusHistory(int $reportId, string $userId, string $notes): void
     {
         db_execute(
             'INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at) VALUES (?, ?, ?, ?, NOW())',
-            'isis',
+            'isss',
             [$reportId, 'submitted_to_ga_president', $userId, $notes]
         );
     }

@@ -11,7 +11,7 @@ class SecurityReportsService
         $this->model = $model ?: new SecurityReportsModel();
     }
 
-    public function getReportsForUser(int $userId): array
+    public function getReportsForUser(string $userId): array
     {
         return $this->model->getReportsBySubmitter($userId);
     }

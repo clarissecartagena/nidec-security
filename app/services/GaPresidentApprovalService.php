@@ -42,7 +42,7 @@ class GaPresidentApprovalService
 
         $reportId = (int)($reportRow['id'] ?? 0);
         $deptId = (int)($reportRow['responsible_department_id'] ?? 0);
-        $decidedBy = (int)($currentUser['id'] ?? 0);
+        $decidedBy = (string)($currentUser['employee_no'] ?? '');
 
         $conn = db();
         $conn->beginTransaction();

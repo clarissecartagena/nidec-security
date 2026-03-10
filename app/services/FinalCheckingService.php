@@ -11,7 +11,7 @@ class FinalCheckingService
         $this->model = $model ?: new FinalCheckingModel();
     }
 
-    public function handlePost(array $post, int $userId): array
+    public function handlePost(array $post, string $userId): array
     {
         $token = (string)($post['csrf_token'] ?? '');
         $action = trim((string)($post['action'] ?? ''));
@@ -35,7 +35,7 @@ class FinalCheckingService
             return ['flash' => 'Report not found.', 'flashType' => 'error'];
         }
 
-        if ((int)($reportRow['submitted_by'] ?? 0) !== $userId) {
+        if ((string)($reportRow['submitted_by'] ?? '') !== $userId) {
             http_response_code(403);
             die('Access denied.');
         }
@@ -101,7 +101,7 @@ class FinalCheckingService
         }
     }
 
-    public function getReportsForUser(int $userId): array
+    public function getReportsForUser(string $userId): array
     {
         return $this->model->getReportsAwaitingFinalCheckingForUser($userId);
     }

@@ -116,7 +116,7 @@ function getUserStatusBadge($status) {
                                         <button class="icon-btn" type="button" title="Edit"
                                             onclick="UsersPage.openEditModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (int)$u['id'],
+                                                'id' => (string)($u['employee_no'] ?? ''),
                                                 'employee_no' => (string)($u['employee_no'] ?? ''),
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
@@ -131,7 +131,7 @@ function getUserStatusBadge($status) {
                                         <button class="icon-btn danger" type="button" title="Delete"
                                             onclick="UsersPage.openDeleteModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (int)$u['id'],
+                                                'id' => (string)($u['employee_no'] ?? ''),
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
                                                 'role' => (string)$u['role'],
@@ -451,7 +451,7 @@ function getUserStatusBadge($status) {
 
 <script>
     const UsersPage = window.UsersPage = {
-        currentUserId: <?php echo (int)$currentUser['id']; ?>,
+        currentUserId: <?php echo json_encode((string)($currentUser['employee_no'] ?? '')); ?>,
         _empApiUrl: '<?php echo htmlspecialchars(app_url('api/employee_search.php'), ENT_QUOTES, 'UTF-8'); ?>',
 
     // ── Modal helpers ─────────────────────────────────────────────────────
@@ -780,14 +780,14 @@ function getUserStatusBadge($status) {
       let user;
       try { user = JSON.parse(raw); } catch { return; }
 
-      const id = Number(user.id) || 0;
-      document.getElementById('delete-user-id').value = String(id);
+      const id = String(user.id || '');
+      document.getElementById('delete-user-id').value = id;
       document.getElementById('delete-user-name').textContent = user.name || '—';
       document.getElementById('delete-user-username').textContent = user.username || '—';
       document.getElementById('delete-user-role').textContent = (user.role || '—').replace(/_/g, ' ');
       document.getElementById('delete-user-dept').textContent = user.department ? String(user.department) : '—';
 
-      const isSelf    = id > 0 && this.currentUserId === id;
+      const isSelf    = id !== '' && this.currentUserId === id;
       const warn      = document.getElementById('delete-self-warning');
       const submitBtn = document.getElementById('delete-user-submit');
       if (warn)      warn.classList.toggle('hidden', !isSelf);

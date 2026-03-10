@@ -61,7 +61,7 @@ class DashboardController
         require_once __DIR__ . '/../../includes/topnav.php';
 
         $currentUser = getUser();
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
 
         $data = $this->service->getSecurityDashboardData($uid);
         $stats        = $data['stats'];
