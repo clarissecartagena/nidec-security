@@ -1,5 +1,23 @@
 SET NAMES utf8mb4;
 
+-- ==================================================================
+-- Drop tables in child → parent order so FK constraints don't block
+-- Safe to run on a fresh or existing database
+-- ==================================================================
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS report_status_history;
+DROP TABLE IF EXISTS report_attachments;
+DROP TABLE IF EXISTS security_final_checks;
+DROP TABLE IF EXISTS department_actions;
+DROP TABLE IF EXISTS ga_president_approvals;
+DROP TABLE IF EXISTS ga_staff_reviews;
+DROP TABLE IF EXISTS reports;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS departments;
+
+-- ==================================================================
+-- departments
+-- ==================================================================
 CREATE TABLE departments (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
@@ -10,32 +28,47 @@ CREATE TABLE departments (
   UNIQUE KEY uq_departments_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- users
+-- ==================================================================
 CREATE TABLE users (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  name VARCHAR(120) NOT NULL,
-  username VARCHAR(60) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  role ENUM('ga_manager','ga_staff','security','pic') NOT NULL,
-  department_id INT UNSIGNED NULL,
-  security_type ENUM('internal','external') NULL,
-  building ENUM('NCFL','NPFL') NULL,
-  account_status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+  -- ── Employee API fields (populated from company Employee API) ──────
+  employee_id     VARCHAR(50)  NULL,            -- company employee number
+  name            VARCHAR(120) NOT NULL,         -- fullname from API
+  email           VARCHAR(150) NULL,             -- work email from API
+  position        VARCHAR(100) NULL,             -- job title from API
+  -- ──────────────────────────────────────────────────────────────────
+
+  username        VARCHAR(60)  NOT NULL,
+  password_hash   VARCHAR(255) NOT NULL,
+  role            ENUM('ga_president','ga_staff','security','department') NOT NULL,
+  department_id   INT UNSIGNED NULL,
+  security_type   ENUM('internal','external') NULL,
+  building        ENUM('NCFL','NPFL') NULL,
+  account_status  ENUM('active','inactive') NOT NULL DEFAULT 'active',
   created_by_role ENUM('ga_president','ga_staff','system') NULL DEFAULT NULL,
   created_by_user_id INT UNSIGNED NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+
   PRIMARY KEY (id),
-  UNIQUE KEY uq_users_username (username),
-  KEY idx_users_role (role),
-  KEY idx_users_department (department_id),
-  KEY idx_users_building (building),
-  KEY idx_users_created_by (created_by_user_id),
+  UNIQUE KEY uq_users_username    (username),
+  UNIQUE KEY uq_users_employee_id (employee_id),   -- one account per employee
+  KEY idx_users_role              (role),
+  KEY idx_users_department        (department_id),
+  KEY idx_users_building          (building),
+  KEY idx_users_created_by        (created_by_user_id),
   CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id)
     ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT fk_users_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- reports
+-- ==================================================================
 CREATE TABLE reports (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_no VARCHAR(30) NOT NULL,
@@ -76,8 +109,6 @@ CREATE TABLE reports (
     'rejected'
   ) NOT NULL DEFAULT 'submitted_to_ga_staff',
 
-  -- Tracks how many times Security has returned this report to Department.
-  -- Used to trigger escalation gates after 2 / 3 failed fix cycles.
   reopen_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
 
   updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -92,7 +123,6 @@ CREATE TABLE reports (
   KEY idx_reports_fix_due_date (fix_due_date),
   KEY idx_reports_building_status (building, status),
   KEY idx_reports_building_dept_status (building, responsible_department_id, status),
-  -- Used by cron post-escalation queries (C1/C2 blocks)
   KEY idx_reports_status_updated (status, updated_at),
   CONSTRAINT fk_reports_department FOREIGN KEY (responsible_department_id) REFERENCES departments(id)
     ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -104,6 +134,9 @@ CREATE TABLE reports (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- notifications
+-- ==================================================================
 CREATE TABLE notifications (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
@@ -114,7 +147,6 @@ CREATE TABLE notifications (
   PRIMARY KEY (id),
   KEY idx_notifications_user_read (user_id, is_read, created_at),
   KEY idx_notifications_report (report_id),
-  -- Composite index for per-(user, report, message) duplicate suppression in the dedup window
   KEY idx_notif_dedup (user_id, report_id, message(80), created_at),
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
@@ -122,6 +154,9 @@ CREATE TABLE notifications (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- report_attachments
+-- ==================================================================
 CREATE TABLE report_attachments (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -139,6 +174,9 @@ CREATE TABLE report_attachments (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- report_status_history
+-- ==================================================================
 CREATE TABLE report_status_history (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -166,6 +204,9 @@ CREATE TABLE report_status_history (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- ga_staff_reviews
+-- ==================================================================
 CREATE TABLE ga_staff_reviews (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -181,6 +222,9 @@ CREATE TABLE ga_staff_reviews (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- ga_president_approvals
+-- ==================================================================
 CREATE TABLE ga_president_approvals (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -196,6 +240,9 @@ CREATE TABLE ga_president_approvals (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- department_actions
+-- ==================================================================
 CREATE TABLE department_actions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -216,6 +263,9 @@ CREATE TABLE department_actions (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================================================================
+-- security_final_checks
+-- ==================================================================
 CREATE TABLE security_final_checks (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
@@ -231,4 +281,3 @@ CREATE TABLE security_final_checks (
   CONSTRAINT fk_sfc_user FOREIGN KEY (checked_by) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-  

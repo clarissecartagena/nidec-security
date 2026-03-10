@@ -1,14 +1,19 @@
 <?php
 
 require_once __DIR__ . '/../models/UsersModel.php';
+require_once __DIR__ . '/EmployeeService.php';
 
 class UsersService
 {
-    private UsersModel $model;
+    private UsersModel     $model;
+    private EmployeeService $employeeService;
 
-    public function __construct(?UsersModel $model = null)
-    {
-        $this->model = $model ?: new UsersModel();
+    public function __construct(
+        ?UsersModel      $model           = null,
+        ?EmployeeService $employeeService = null
+    ) {
+        $this->model           = $model           ?? new UsersModel();
+        $this->employeeService = $employeeService ?? new EmployeeService();
     }
 
     /**
@@ -32,24 +37,39 @@ class UsersService
 
         try {
             if ($action === 'add') {
-                $name = trim((string)($post['name'] ?? ''));
-                $username = trim((string)($post['username'] ?? ''));
-                $password = (string)($post['password'] ?? '');
-                $role = (string)($post['role'] ?? '');
+                // ── Step 1: basic field extraction ──────────────────────────────
+                $employeeId   = trim((string)($post['employee_id'] ?? ''));
+                $username     = trim((string)($post['username'] ?? ''));
+                $password     = (string)($post['password'] ?? '');
+                $role         = (string)($post['role'] ?? '');
                 $departmentId = (int)($post['department_id'] ?? 0);
                 $securityType = (string)($post['security_type'] ?? '');
-                $building = (string)($post['building'] ?? '');
+                $building     = (string)($post['building'] ?? '');
                 $accountStatus = 'active';
 
-                // GA President should not create another GA President account.
-                if ($name === '' || $username === '' || $password === '' || !in_array($role, ['ga_staff', 'security', 'department'], true)) {
+                if ($employeeId === '' || $username === '' || $password === ''
+                    || !in_array($role, ['ga_staff', 'security', 'department'], true)
+                ) {
                     throw new RuntimeException('Please fill in all required fields.');
                 }
 
+                // ── Step 2: verify employee via API (prevents POST spoofing) ────
+                // Name, email, department, and position are ALWAYS sourced from
+                // the API result — never from the submitted form fields.
+                $empResult = $this->employeeService->getEmployee($employeeId);
+                if (!$empResult['success']) {
+                    throw new RuntimeException(
+                        'Employee verification failed: '
+                        . ($empResult['error'] ?? 'Employee not found.')
+                    );
+                }
+                $emp = $empResult['employee'];
+
+                // ── Step 3: role-specific validation ────────────────────────────
                 if ($role === 'department') {
                     if ($departmentId <= 0) throw new RuntimeException('Please select a department.');
                     $securityType = '';
-                    $building = '';
+                    $building     = '';
                 } elseif ($role === 'security') {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a security type (internal/external).');
@@ -61,11 +81,24 @@ class UsersService
                 } else {
                     $departmentId = 0;
                     $securityType = '';
-                    $building = '';
+                    $building     = '';
                 }
 
+                // ── Step 4: persist ─────────────────────────────────────────────
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $this->model->insertUser($name, $username, $hash, $role, $securityType, $building, $departmentId, $accountStatus);
+                $this->model->insertUser(
+                    $emp['employee_id'],
+                    $emp['fullname'],
+                    $emp['email'],
+                    $emp['position'],
+                    $username,
+                    $hash,
+                    $role,
+                    $securityType,
+                    $building,
+                    $departmentId,
+                    $accountStatus
+                );
 
                 $flash = 'User added successfully.';
             } elseif ($action === 'update') {

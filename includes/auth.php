@@ -31,9 +31,9 @@ function auth_user(): ?array {
     return $_SESSION['user'] ?? null;
 }
 
-function auth_login(string $username, string $password, string $role): bool {
+function auth_login(string $username, string $password): bool {
     $service = new AuthService();
-    return $service->login($username, $password, $role);
+    return $service->login($username, $password);
 }
 
 function auth_logout(): void {

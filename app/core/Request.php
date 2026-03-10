@@ -25,14 +25,30 @@ class Request {
         $uriPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
         $uriPath = $uriPath === '' ? '/' : $uriPath;
 
-        // Strip the base directory (e.g. /NidecSecurity/public) so that routes
-        // are registered as /login.php instead of /NidecSecurity/public/login.php.
+        // Strip the base directory so that routes are registered as /login.php
+        // instead of /NidecSecurity/public/login.php.
+        //
+        // scriptDir is always /NidecSecurity/public (SCRIPT_NAME = public/index.php).
+        // When accessed via root .htaccess the REQUEST_URI has no /public segment,
+        // so we fall back to stripping just the parent (project root) directory.
         $scriptDir = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
         if ($scriptDir !== '' && $scriptDir !== '/') {
             if (str_starts_with($uriPath, $scriptDir . '/')) {
+                // Standard: /NidecSecurity/public/login.php → /login.php
                 $uriPath = substr($uriPath, strlen($scriptDir)) ?: '/';
             } elseif ($uriPath === $scriptDir) {
                 $uriPath = '/';
+            } else {
+                // Root-access fallback: REQUEST_URI is /NidecSecurity/login.php
+                // but scriptDir is /NidecSecurity/public — strip project root only.
+                $parentDir = rtrim(dirname($scriptDir), '/');
+                if ($parentDir !== '' && $parentDir !== '/') {
+                    if (str_starts_with($uriPath, $parentDir . '/')) {
+                        $uriPath = substr($uriPath, strlen($parentDir)) ?: '/';
+                    } elseif ($uriPath === $parentDir) {
+                        $uriPath = '/';
+                    }
+                }
             }
         }
 

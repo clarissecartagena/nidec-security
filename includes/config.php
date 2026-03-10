@@ -12,29 +12,33 @@ require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../helpers/status_helper.php';
 
 // Base URL helper (supports pages in subfolders like ga_staff/*)
+// Also supports root-access mode: http://localhost/NidecSecurity/login.php
+// (Apache root .htaccess routes internally to public/index.php)
 if (!defined('APP_BASE_URL')) {
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $scriptName = str_replace('\\', '/', $scriptName);
-    $parts = explode('/', trim($scriptName, '/'));
     $projectDir = basename(dirname(__DIR__));
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    // Use REQUEST_URI (the URL the browser actually sent) to decide whether
+    // /public should appear in the base URL — not SCRIPT_NAME, which always
+    // points to public/index.php regardless of the access pattern.
+    $requestUri = strtok($_SERVER['REQUEST_URI'] ?? '', '?');
     $baseUrl = '';
-    if (!empty($parts) && $parts[0] === $projectDir) {
-        // If accessed through .../public/* (common on XAMPP with project under htdocs),
-        // ensure generated URLs include /public so assets and links resolve.
-        $baseUrl = '';
+    if ($requestUri !== '') {
+        if (preg_match('#^(.*?/public)(?:/|$)#', $requestUri, $m)) {
+            // Browser explicitly requested a /public/... path.
+            $baseUrl = rtrim($m[1], '/');
+        } elseif (preg_match('#^((?:/[^/?#]+)*/' . preg_quote($projectDir, '#') . ')(?:/|$)#i', $requestUri, $m)) {
+            // Root-access: /NidecSecurity/login.php routed via root .htaccess.
+            // Assets are transparently rewritten by the same .htaccess.
+            $baseUrl = rtrim($m[1], '/');
+        }
+        // else: app served at the web root — $baseUrl stays ''
+    } else {
+        // CLI / CRON — no REQUEST_URI available; fall back to SCRIPT_NAME.
         if (preg_match('#^(.*?)/public(?:/|$)#', $scriptName, $m)) {
             $baseUrl = rtrim($m[1], '/') . '/public';
-        } else {
-            // Fallback: if project lives under /<projectDir>/..., keep that base.
-            $parts = explode('/', trim($scriptName, '/'));
-            $projectDir = basename(dirname(__DIR__));
-            if (!empty($parts) && $parts[0] === $projectDir) {
-                $baseUrl = '/' . $projectDir;
-            }
+        } elseif (preg_match('#^((?:/[^/]+)*/' . preg_quote($projectDir, '#') . ')(?:/|$)#i', $scriptName, $m)) {
+            $baseUrl = rtrim($m[1], '/');
         }
-    } elseif (!empty($parts) && $parts[0] === 'public') {
-        // Alternate deployment: app served from /public/* under the server root
-        $baseUrl = '/public';
     }
     define('APP_BASE_URL', $baseUrl);
 }
