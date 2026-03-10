@@ -46,7 +46,7 @@ class ProfileController
                     } else {
                         db_execute(
                             'UPDATE users SET email = ? WHERE employee_no = ? LIMIT 1',
-                            '',
+                            'ss',
                             [$newEmail, $employeeNo]
                         );
                         // Refresh db user

@@ -120,7 +120,7 @@ if (!move_uploaded_file($tmpPath, $destPath)) {
 // Persist to database
 db_execute(
     'UPDATE users SET signature_path = ? WHERE employee_no = ? LIMIT 1',
-    '',
+    'ss',
     [$publicPath, $employeeNo]
 );
 
