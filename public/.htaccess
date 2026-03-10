@@ -1,0 +1,16 @@
+Options -Indexes
+
+# ── Front-Controller Rewrite ──────────────────────────────────────────────
+# Route all page requests through index.php so the Router can handle them.
+# Static assets (CSS, JS, images, uploads) and API files are served directly.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pass real files and directories through unchanged (assets, uploads, etc.)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Route everything else to the front controller.
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>

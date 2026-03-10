@@ -1,0 +1,47 @@
+Options -Indexes
+
+# ── Root URL Routing ──────────────────────────────────────────────────────
+# Allows the app to be accessed at /NidecSecurity/login.php (without /public).
+# Apache transparently routes all page and asset requests to public/.
+#
+# To use this mode:
+#   1. Place the project folder inside htdocs/  (e.g. htdocs/NidecSecurity/).
+#   2. Access the site at http://localhost/NidecSecurity/
+#
+# How it works:
+#   In .htaccess context mod_rewrite matches against the URI *relative to* this
+#   directory, so a browser request for /NidecSecurity/login.php is seen here as
+#   simply "login.php".
+#
+#   - Requests for static assets/uploads that are not real files are rewritten to
+#     public/<path> so Apache resolves them from the public/ subdirectory.
+#   - All other non-file, non-directory requests are routed to public/index.php.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pass real files and directories through unchanged
+    # (e.g. public/index.php itself, public/assets/* when accessed via /public/).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # --- Static assets (CSS, JS, images, fonts) ---
+    # e.g. /NidecSecurity/assets/css/style.css → public/assets/css/style.css
+    RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|map)$ [NC]
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # --- uploads directory ---
+    # e.g. /NidecSecurity/uploads/foo.pdf → public/uploads/foo.pdf
+    RewriteCond %{REQUEST_URI} ^/[^/]+/uploads/
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # --- API endpoints (served as real PHP files inside public/api/) ---
+    # e.g. /NidecSecurity/api/employee_search.php → public/api/employee_search.php
+    RewriteCond %{REQUEST_URI} ^/[^/]+/api/
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # --- All other requests → front controller ---
+    # e.g. /NidecSecurity/login.php → public/index.php
+    RewriteRule ^(.*)$ public/index.php [L,QSA]
+</IfModule>

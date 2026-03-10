@@ -128,9 +128,34 @@ class EmployeeApiClient
             if (empty($list)) {
                 $result = ['success' => false, 'data' => null, 'error' => 'Employee not found.'];
             } else {
-                // Some APIs wrap a single record; handle both array-of-one and bare object.
-                $raw = is_array($list[0] ?? null) ? $list[0] : $list;
-                $result['data'] = $this->normalizeEmployee($raw);
+                // Some company APIs return the full employee list without server-side
+                // filtering (ignoring the employee_id query parameter). Search through
+                // all returned records to find the one whose employee_id matches.
+                $found = null;
+                foreach ($list as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $normalized = $this->normalizeEmployee($item);
+                    if ($normalized['employee_id'] === (string)$employeeId) {
+                        $found = $normalized;
+                        break;
+                    }
+                }
+
+                if ($found !== null) {
+                    $result['data'] = $found;
+                } elseif (count($list) === 1) {
+                    // The API returned exactly one record — it filtered server-side.
+                    // Return it regardless of whether the employee_id field could be
+                    // read (e.g. the API uses a non-standard field name for the ID).
+                    $raw = is_array($list[0] ?? null) ? $list[0] : $list;
+                    $result['data'] = $this->normalizeEmployee($raw);
+                } else {
+                    // Multiple records were returned but none matched the requested ID.
+                    // The employee does not exist in the API data.
+                    $result = ['success' => false, 'data' => null, 'error' => 'Employee not found.'];
+                }
             }
         } else {
             $result['data'] = null;
@@ -319,7 +344,8 @@ class EmployeeApiClient
     {
         return [
             'employee_id' => (string)(
-                $raw['employee_id'] ?? $raw['emp_id'] ?? $raw['id'] ?? ''
+                $raw['employee_id'] ?? $raw['emp_id'] ?? $raw['id'] ??
+                $raw['employee_no'] ?? $raw['emp_no'] ?? $raw['empno'] ?? ''
             ),
             'fullname'    => trim((string)(
                 $raw['fullname'] ?? $raw['full_name'] ?? $raw['name'] ?? ''
