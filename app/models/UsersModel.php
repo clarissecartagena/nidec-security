@@ -2,9 +2,9 @@
 
 class UsersModel
 {
-    public function getUserRoleById(int $id): ?string
+    public function getUserRoleByEmployeeNo(string $employeeNo): ?string
     {
-        $row = db_fetch_one('SELECT role FROM users WHERE id=? LIMIT 1', 'i', [$id]);
+        $row = db_fetch_one('SELECT role FROM users WHERE employee_no=? LIMIT 1', 's', [$employeeNo]);
         if (!$row) return null;
         return (string)($row['role'] ?? '');
     }
@@ -34,7 +34,7 @@ class UsersModel
                  (employee_no, name, email, position, department, username, password_hash,
                   role, security_type, entity, department_id, account_status)
              VALUES
-                 (NULLIF(?,\'\'), ?, NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,\'\'),
+                 (?, ?, NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,\'\'),
                   ?, ?, ?,
                   NULLIF(?,\'\'), NULLIF(?,\'\'), NULLIF(?,0), ?)',
             '',
@@ -47,7 +47,7 @@ class UsersModel
     }
 
     public function updateUserWithPassword(
-        int $id,
+        string $employeeNo,
         string $name,
         string $username,
         string $passwordHash,
@@ -58,14 +58,14 @@ class UsersModel
         string $accountStatus
     ): void {
         db_execute(
-            'UPDATE users SET name=?, username=?, password_hash=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
-            'ssssssisi',
-            [$name, $username, $passwordHash, $role, $securityType, $entity, $departmentId, $accountStatus, $id]
+            'UPDATE users SET name=?, username=?, password_hash=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE employee_no=?',
+            'ssssssisc',
+            [$name, $username, $passwordHash, $role, $securityType, $entity, $departmentId, $accountStatus, $employeeNo]
         );
     }
 
     public function updateUserNoPassword(
-        int $id,
+        string $employeeNo,
         string $name,
         string $username,
         string $role,
@@ -75,15 +75,15 @@ class UsersModel
         string $accountStatus
     ): void {
         db_execute(
-            'UPDATE users SET name=?, username=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE id=?',
-            'sssssisi',
-            [$name, $username, $role, $securityType, $entity, $departmentId, $accountStatus, $id]
+            'UPDATE users SET name=?, username=?, role=?, security_type=NULLIF(?,\'\'), entity=NULLIF(?,\'\'), department_id=NULLIF(?,0), account_status=? WHERE employee_no=?',
+            'sssssiss',
+            [$name, $username, $role, $securityType, $entity, $departmentId, $accountStatus, $employeeNo]
         );
     }
 
-    public function deleteUserById(int $id): void
+    public function deleteUserByEmployeeNo(string $employeeNo): void
     {
-        db_execute('DELETE FROM users WHERE id=?', 'i', [$id]);
+        db_execute('DELETE FROM users WHERE employee_no=?', 's', [$employeeNo]);
     }
 
     /**
@@ -97,7 +97,7 @@ class UsersModel
     {
         // Try by employee_no first (most reliable).
         $user = db_fetch_one(
-            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
+            'SELECT u.employee_no, u.name, u.email, u.position,
                     u.username, u.password_hash, u.role, u.account_status,
                     u.department_id, u.security_type, u.entity,
                     d.name AS department_name
@@ -114,7 +114,7 @@ class UsersModel
 
         // Fall back to username lookup.
         return db_fetch_one(
-            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
+            'SELECT u.employee_no, u.name, u.email, u.position,
                     u.username, u.password_hash, u.role, u.account_status,
                     u.department_id, u.security_type, u.entity,
                     d.name AS department_name
@@ -130,7 +130,7 @@ class UsersModel
     public function getAllUsers(): array
     {
         return db_fetch_all(
-            'SELECT u.id, u.employee_no, u.name, u.email, u.position,
+            'SELECT u.employee_no, u.name, u.email, u.position,
                     u.username, u.role, u.security_type, u.entity,
                     u.department_id, u.account_status,
                     d.name AS department_name
