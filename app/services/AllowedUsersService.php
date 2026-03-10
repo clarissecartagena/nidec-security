@@ -77,13 +77,21 @@ class AllowedUsersService
      *   3. Insert a new active account into the local `users` table.
      *   4. Return the newly created user record (ready for session creation).
      *
+     * The username used is:
+     *   - The 'username' value from config/allowed_users.php if present, OR
+     *   - The $username parameter passed in (from the corporate API login attempt).
+     *
+     * The password stored is:
+     *   - A bcrypt hash of the 'password' value from the config if present, OR
+     *   - An empty hash (only corporate API login will work).
+     *
      * Returns null when:
      *   • The employee_id is not in the allowed list.
      *   • The Employee API cannot be reached or the employee is not found.
      *   • Inserting the record fails (e.g., duplicate username).
      *
      * @param  string $employeeId  The employee ID returned by the login API.
-     * @param  string $username    The username the employee used to log in.
+     * @param  string $username    The username the employee used to log in (fallback).
      * @return array<string,mixed>|null  User record on success, null on failure.
      */
     public function provision(string $employeeId, string $username): ?array
@@ -92,6 +100,16 @@ class AllowedUsersService
         if ($config === null) {
             return null;
         }
+
+        // Prefer the username from the config; fall back to the login-time username.
+        $resolvedUsername = trim((string)($config['username'] ?? ''));
+        if ($resolvedUsername === '') {
+            $resolvedUsername = $username;
+        }
+
+        // Hash the configured test password, or leave empty (API-only auth).
+        $plainPassword = (string)($config['password'] ?? '');
+        $passwordHash  = $plainPassword !== '' ? password_hash($plainPassword, PASSWORD_DEFAULT) : '';
 
         // Fetch profile from the Employee API.
         $empResult = $this->employeeService->getEmployee($employeeId);
@@ -105,17 +123,13 @@ class AllowedUsersService
         $building     = $config['building']      ?? null;
         $departmentId = $config['department_id'] ?? null;
 
-        // Accounts created via auto-provisioning do not have a local password.
-        // Authentication always goes through the corporate login API.
-        $passwordHash = '';
-
         try {
             $this->usersModel->insertUser(
                 (string)($emp['employee_id'] ?? $employeeId),
                 (string)($emp['fullname']    ?? ''),
                 (string)($emp['email']       ?? ''),
                 (string)($emp['position']    ?? ''),
-                $username,
+                $resolvedUsername,
                 $passwordHash,
                 $role,
                 (string)($securityType ?? ''),
@@ -129,6 +143,6 @@ class AllowedUsersService
         }
 
         // Return the freshly inserted record so the caller can open a session.
-        return $this->usersModel->findProvisionedUser($employeeId, $username);
+        return $this->usersModel->findProvisionedUser($employeeId, $resolvedUsername);
     }
 }
