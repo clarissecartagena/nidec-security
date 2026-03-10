@@ -67,6 +67,12 @@ class EmployeeApiClient
         return $this->usingMock;
     }
 
+    /** Returns the resolved base URL (company API or mock) that is currently in use. */
+    public function getBaseUrl(): string
+    {
+        return $this->baseUrl;
+    }
+
     /**
      * Search employees by free-text query (name fragment or employee ID).
      *

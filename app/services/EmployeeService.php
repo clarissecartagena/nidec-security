@@ -60,6 +60,24 @@ class EmployeeService
     // ──────────────────────────────────────────────────────────────────────
 
     /**
+     * Returns true when the mock API is currently in use.
+     * Useful for diagnostic / status output in CLI tools.
+     */
+    public function isUsingMock(): bool
+    {
+        return $this->client->isUsingMock();
+    }
+
+    /**
+     * Returns the resolved API base URL that is currently in use
+     * (either the company API or the local mock).
+     */
+    public function getApiBaseUrl(): string
+    {
+        return $this->client->getBaseUrl();
+    }
+
+    /**
      * Search employees by free-text query (name fragment or employee ID).
      *
      * Returns up to however many records the company API returns. The caller
