@@ -69,18 +69,63 @@ try {
     if ($employeeId !== '') {
         // Exact lookup by employee_id.
         $result = $service->getEmployee($employeeId);
-        echo json_encode([
-            'success'    => $result['success'],
-            'employees'  => $result['success'] && $result['employee'] !== null
-                ? [$result['employee']]
-                : [],
-            'error'      => $result['error'],
-            'using_mock' => false,
-        ]);
+
+        if ($result['success'] && $result['employee'] !== null) {
+            $emp = $result['employee'];
+            // Check if the employee qualifies for any system role.
+            if (EmployeeService::detectRoleFromEmployee($emp) === null) {
+                echo json_encode([
+                    'success'    => false,
+                    'employees'  => [],
+                    'error'      => 'No GA Staff, Security, or Department/PIC employee found with that employee number.',
+                    'using_mock' => false,
+                ]);
+            } else {
+                echo json_encode([
+                    'success'    => true,
+                    'employees'  => [$emp],
+                    'error'      => null,
+                    'using_mock' => false,
+                ]);
+            }
+        } else {
+            echo json_encode([
+                'success'    => false,
+                'employees'  => [],
+                'error'      => $result['error'],
+                'using_mock' => false,
+            ]);
+        }
     } elseif ($query !== '') {
         // Free-text search.
         $result = $service->search($query);
-        echo json_encode($result);
+
+        if ($result['success']) {
+            // Filter to only employees who qualify for a system role.
+            $allFound = $result['employees'];
+            $eligible = array_values(array_filter($allFound, static function (array $emp): bool {
+                return EmployeeService::detectRoleFromEmployee($emp) !== null;
+            }));
+
+            if (count($eligible) === 0 && count($allFound) > 0) {
+                // Employees were found in the directory but none match an allowed role.
+                echo json_encode([
+                    'success'    => false,
+                    'employees'  => [],
+                    'error'      => 'No GA Staff, Security, or Department/PIC employee found with that name or employee number.',
+                    'using_mock' => $result['using_mock'],
+                ]);
+            } else {
+                echo json_encode([
+                    'success'    => count($eligible) > 0,
+                    'employees'  => $eligible,
+                    'error'      => count($eligible) === 0 ? ($result['error'] ?? 'No employees found.') : null,
+                    'using_mock' => $result['using_mock'],
+                ]);
+            }
+        } else {
+            echo json_encode($result);
+        }
     } else {
         http_response_code(400);
         echo json_encode([

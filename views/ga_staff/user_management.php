@@ -112,18 +112,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 db_execute(
                     "INSERT INTO users
-                         (employee_no, name, email, position, username, password_hash,
+                         (employee_no, name, email, position, department, username, password_hash,
                           role, department_id, security_type, entity, account_status,
                           created_by_role, created_by_user_id)
                      VALUES
-                         (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), ?, ?,
+                         (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
                           ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
                           'ga_staff', ?)",
                     '',
                     [
                         $emp['employee_id'], $emp['fullname'],
                         $emp['email'],       $emp['position'],
-                        $username,           $hash,
+                        $emp['department'],  $username,  $hash,
                         $role, $departmentId, $securityType, $entity, $accountStatus,
                         $currentUserId,
                     ]

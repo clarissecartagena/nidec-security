@@ -32,13 +32,12 @@ CREATE TABLE departments (
 -- users
 -- ==================================================================
 CREATE TABLE users (
-  id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
-
   -- ── Employee API fields (populated from company Employee API) ──────
-  employee_no     VARCHAR(50)  NULL,            -- company employee number
-  name            VARCHAR(120) NOT NULL,         -- fullname from API
-  email           VARCHAR(150) NULL,             -- work email from API
-  position        VARCHAR(100) NULL,             -- job title from API
+  employee_no     VARCHAR(50)  NOT NULL,          -- company employee number (PRIMARY KEY)
+  name            VARCHAR(120) NOT NULL,           -- fullname from API
+  email           VARCHAR(150) NULL,               -- work email from API
+  position        VARCHAR(100) NULL,               -- job title from API
+  department      VARCHAR(120) NULL,               -- department name from API
   -- ──────────────────────────────────────────────────────────────────
 
   username        VARCHAR(60)  NOT NULL,
@@ -46,23 +45,21 @@ CREATE TABLE users (
   role            ENUM('ga_president','ga_staff','security','department') NOT NULL,
   department_id   INT UNSIGNED NULL,
   security_type   ENUM('internal','external') NULL,
-  entity          ENUM('NCFL','NPFL') NULL,      -- assigned entity (security users)
+  entity          ENUM('NCFL','NPFL') NULL,        -- assigned entity (security users)
   account_status  ENUM('active','inactive') NOT NULL DEFAULT 'active',
   created_by_role ENUM('ga_president','ga_staff','system') NULL DEFAULT NULL,
-  created_by_user_id INT UNSIGNED NULL,
+  created_by_employee_no VARCHAR(50) NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
 
-  PRIMARY KEY (id),
+  PRIMARY KEY (employee_no),
   UNIQUE KEY uq_users_username    (username),
-  UNIQUE KEY uq_users_employee_no (employee_no),   -- one account per employee
   KEY idx_users_role              (role),
   KEY idx_users_department        (department_id),
   KEY idx_users_entity            (entity),
-  KEY idx_users_created_by        (created_by_user_id),
   CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id)
     ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_users_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+  CONSTRAINT fk_users_created_by FOREIGN KEY (created_by_employee_no) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -85,14 +82,14 @@ CREATE TABLE reports (
   recommendations TEXT NULL,
   evidence_image_path VARCHAR(255) NULL,
 
-  submitted_by INT UNSIGNED NULL,
+  submitted_by VARCHAR(50) NULL,
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   current_reviewer ENUM('ga_staff','ga_president','department','security') NULL,
   fix_due_date DATETIME NULL,
-  resolved_by_security INT UNSIGNED NULL,
+  resolved_by_security VARCHAR(50) NULL,
   resolved_at DATETIME NULL,
-  returned_by_security INT UNSIGNED NULL,
+  returned_by_security VARCHAR(50) NULL,
   returned_at DATETIME NULL,
   security_remarks TEXT NULL,
 
@@ -126,11 +123,11 @@ CREATE TABLE reports (
   KEY idx_reports_status_updated (status, updated_at),
   CONSTRAINT fk_reports_department FOREIGN KEY (responsible_department_id) REFERENCES departments(id)
     ON UPDATE CASCADE ON DELETE RESTRICT,
-  CONSTRAINT fk_reports_submitted_by FOREIGN KEY (submitted_by) REFERENCES users(id)
+  CONSTRAINT fk_reports_submitted_by FOREIGN KEY (submitted_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_reports_resolved_by FOREIGN KEY (resolved_by_security) REFERENCES users(id)
+  CONSTRAINT fk_reports_resolved_by FOREIGN KEY (resolved_by_security) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_reports_returned_by FOREIGN KEY (returned_by_security) REFERENCES users(id)
+  CONSTRAINT fk_reports_returned_by FOREIGN KEY (returned_by_security) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -139,7 +136,7 @@ CREATE TABLE reports (
 -- ==================================================================
 CREATE TABLE notifications (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id INT UNSIGNED NOT NULL,
+  user_id VARCHAR(50) NOT NULL,
   report_id INT UNSIGNED NULL,
   message VARCHAR(255) NOT NULL,
   is_read TINYINT(1) NOT NULL DEFAULT 0,
@@ -148,7 +145,7 @@ CREATE TABLE notifications (
   KEY idx_notifications_user_read (user_id, is_read, created_at),
   KEY idx_notifications_report (report_id),
   KEY idx_notif_dedup (user_id, report_id, message(80), created_at),
-  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id)
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_notifications_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE SET NULL
@@ -164,13 +161,13 @@ CREATE TABLE report_attachments (
   file_path VARCHAR(255) NOT NULL,
   mime_type VARCHAR(100) NULL,
   file_size_bytes INT UNSIGNED NULL,
-  uploaded_by INT UNSIGNED NULL,
+  uploaded_by VARCHAR(50) NULL,
   uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_attach_report (report_id),
   CONSTRAINT fk_attach_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_attach_user FOREIGN KEY (uploaded_by) REFERENCES users(id)
+  CONSTRAINT fk_attach_user FOREIGN KEY (uploaded_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -192,7 +189,7 @@ CREATE TABLE report_status_history (
     'resolved',
     'rejected'
   ) NOT NULL,
-  changed_by INT UNSIGNED NULL,
+  changed_by VARCHAR(50) NULL,
   notes VARCHAR(255) NULL,
   changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -200,7 +197,7 @@ CREATE TABLE report_status_history (
   KEY idx_rsh_changed_at (changed_at),
   CONSTRAINT fk_rsh_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_rsh_user FOREIGN KEY (changed_by) REFERENCES users(id)
+  CONSTRAINT fk_rsh_user FOREIGN KEY (changed_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -210,7 +207,7 @@ CREATE TABLE report_status_history (
 CREATE TABLE ga_staff_reviews (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
-  reviewed_by INT UNSIGNED NULL,
+  reviewed_by VARCHAR(50) NULL,
   decision ENUM('forwarded','returned') NOT NULL DEFAULT 'forwarded',
   notes TEXT NULL,
   reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -218,7 +215,7 @@ CREATE TABLE ga_staff_reviews (
   UNIQUE KEY uq_ga_staff_reviews_report (report_id),
   CONSTRAINT fk_gasr_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_gasr_user FOREIGN KEY (reviewed_by) REFERENCES users(id)
+  CONSTRAINT fk_gasr_user FOREIGN KEY (reviewed_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -228,7 +225,7 @@ CREATE TABLE ga_staff_reviews (
 CREATE TABLE ga_president_approvals (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   report_id INT UNSIGNED NOT NULL,
-  decided_by INT UNSIGNED NULL,
+  decided_by VARCHAR(50) NULL,
   decision ENUM('approved','rejected','returned') NOT NULL,
   notes TEXT NULL,
   decided_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -236,7 +233,7 @@ CREATE TABLE ga_president_approvals (
   UNIQUE KEY uq_gapa_report (report_id),
   CONSTRAINT fk_gapa_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_gapa_user FOREIGN KEY (decided_by) REFERENCES users(id)
+  CONSTRAINT fk_gapa_user FOREIGN KEY (decided_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -252,14 +249,14 @@ CREATE TABLE department_actions (
   timeline_due DATETIME NULL,
   remarks TEXT NULL,
   evidence_image_path VARCHAR(255) NULL,
-  acted_by INT UNSIGNED NULL,
+  acted_by VARCHAR(50) NULL,
   acted_at DATETIME NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_dept_actions_report (report_id),
   KEY idx_dept_actions_due (timeline_due),
   CONSTRAINT fk_depta_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_depta_user FOREIGN KEY (acted_by) REFERENCES users(id)
+  CONSTRAINT fk_depta_user FOREIGN KEY (acted_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -271,13 +268,13 @@ CREATE TABLE security_final_checks (
   report_id INT UNSIGNED NOT NULL,
   decision ENUM('confirmed','rejected','returned') NOT NULL,
   remarks TEXT NULL,
-  checked_by INT UNSIGNED NULL,
+  checked_by VARCHAR(50) NULL,
   checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   closed_at DATETIME NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_sfc_report (report_id),
   CONSTRAINT fk_sfc_report FOREIGN KEY (report_id) REFERENCES reports(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_sfc_user FOREIGN KEY (checked_by) REFERENCES users(id)
+  CONSTRAINT fk_sfc_user FOREIGN KEY (checked_by) REFERENCES users(employee_no)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

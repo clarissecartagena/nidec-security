@@ -41,6 +41,7 @@ require_once SCRIPT_ROOT . '/config/api.php';
 require_once SCRIPT_ROOT . '/app/models/UsersModel.php';
 require_once SCRIPT_ROOT . '/app/api_clients/EmployeeApiClient.php';
 require_once SCRIPT_ROOT . '/app/services/EmployeeService.php';
+require_once SCRIPT_ROOT . '/app/services/AllowedUsersService.php';
 
 $allowed = require SCRIPT_ROOT . '/config/allowed_users.php';
 
@@ -49,22 +50,14 @@ $employeeService = new EmployeeService();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function already_exists(string $employeeNo, string $username): bool
+function already_exists(string $employeeNo): bool
 {
-    $byEmpNo = db_fetch_one(
+    $row = db_fetch_one(
         'SELECT id FROM users WHERE employee_no = ? LIMIT 1',
         's',
         [$employeeNo]
     );
-    if ($byEmpNo) {
-        return true;
-    }
-    $byUsername = db_fetch_one(
-        'SELECT id FROM users WHERE username = ? LIMIT 1',
-        's',
-        [$username]
-    );
-    return (bool)$byUsername;
+    return (bool)$row;
 }
 
 /**
@@ -96,8 +89,7 @@ echo "Provisioning allowed users from config/allowed_users.php...\n\n";
 foreach ($allowed as $entry) {
     // Support both 'employee_no' (new) and 'employee_id' (legacy) key names.
     $employeeNo = trim((string)($entry['employee_no'] ?? $entry['employee_id'] ?? ''));
-    $username   = trim((string)($entry['username']   ?? ''));
-    $password   = (string)($entry['password']   ?? '');
+    $password   = (string)($entry['password'] ?? '');
 
     if ($employeeNo === '') {
         echo "  [SKIP]  Entry has no employee_no — skipped.\n";
@@ -105,15 +97,9 @@ foreach ($allowed as $entry) {
         continue;
     }
 
-    if ($username === '') {
-        echo "  [SKIP]  {$employeeNo}: no username configured — skipped.\n";
-        $skipped++;
-        continue;
-    }
-
-    // Check if an account already exists.
-    if (already_exists($employeeNo, $username)) {
-        echo "  [OK]    {$username} ({$employeeNo}) already exists — skipped.\n";
+    // Check if an account already exists for this employee.
+    if (already_exists($employeeNo)) {
+        echo "  [OK]    {$employeeNo} already exists — skipped.\n";
         $skipped++;
         continue;
     }
@@ -122,7 +108,7 @@ foreach ($allowed as $entry) {
     $empResult = $employeeService->getEmployee($employeeNo);
     if (!$empResult['success'] || empty($empResult['employee'])) {
         $error = $empResult['error'] ?? 'Employee API unreachable or employee not found.';
-        echo "  [FAIL]  {$username} ({$employeeNo}): {$error}\n";
+        echo "  [FAIL]  {$employeeNo}: {$error}\n";
         $failed++;
         continue;
     }
@@ -130,34 +116,35 @@ foreach ($allowed as $entry) {
 
     // ── Auto-detect role + entity from Employee API ────────────────────────
     $detected = EmployeeService::detectRoleFromEmployee($emp);
-    if ($detected !== null) {
-        $role   = $detected['role'];
-        $entity = $detected['entity'];
-    } else {
-        // Fall back to config-specified role (e.g. when using mock API with
-        // limited data that doesn't include section/job_level fields).
-        $role   = (string)($entry['role']   ?? 'department');
-        $entity = (string)($entry['entity'] ?? $entry['building'] ?? '');
+    if ($detected === null) {
+        echo "  [SKIP]  {$employeeNo}: employee does not match any allowed role (not GA Staff, Security, or Department/PIC) — skipped.\n";
+        $skipped++;
+        continue;
+    }
+    $role   = $detected['role'];
+    $entity = $detected['entity'];
+
+    // ── Derive username from API fullname ─────────────────────────────────
+    $username = AllowedUsersService::generateUsername((string)($emp['fullname'] ?? ''));
+    if ($username === '') {
+        // Fall back to employee_no when name cannot be parsed.
+        $username = $employeeNo;
     }
 
     // Hash the configured password (or leave blank if none set).
     $passwordHash = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : '';
 
-    $securityType = (string)($entry['security_type'] ?? '');
-    $departmentId = (int)($entry['department_id']    ?? 0);
-
-    // If department_id is not set in config, resolve it from the dept name
-    // returned by the Employee API so it is stored correctly.
-    if ($departmentId === 0) {
-        $departmentId = department_id_by_name((string)($emp['department'] ?? ''));
-    }
+    // security_type defaults to 'internal'; can be updated via User Management.
+    $securityType = $role === 'security' ? 'internal' : '';
+    $departmentId = department_id_by_name((string)($emp['department'] ?? ''));
 
     try {
         $model->insertUser(
             (string)($emp['employee_id'] ?? $employeeNo),
-            (string)($emp['fullname']    ?? $username),
+            (string)($emp['fullname']    ?? $employeeNo),
             (string)($emp['email']       ?? ''),
             (string)($emp['position']    ?? ''),
+            (string)($emp['department']  ?? ''),
             $username,
             $passwordHash,
             $role,
@@ -171,7 +158,7 @@ foreach ($allowed as $entry) {
         echo "  [DONE]  {$username} ({$employeeNo}) provisioned as {$role} {$tag}\n";
         $provisioned++;
     } catch (Throwable $e) {
-        echo "  [FAIL]  {$username} ({$employeeNo}): " . $e->getMessage() . "\n";
+        echo "  [FAIL]  {$employeeNo}: " . $e->getMessage() . "\n";
         $failed++;
     }
 }
