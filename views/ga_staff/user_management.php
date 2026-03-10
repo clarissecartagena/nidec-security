@@ -215,7 +215,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = db_fetch_all(
-    "SELECT u.employee_no, u.name, u.username, u.role, u.department_id, u.security_type, u.entity, u.account_status, u.created_at, d.name AS department_name
+    /* department_name: prefer the departments-table name (department-role users).
+       Fall back to u.department (raw API value stored at registration) so that
+       security-role users — who have no department_id — still show a value. */
+    "SELECT u.employee_no, u.name, u.username, u.role, u.department_id, u.security_type, u.entity, u.account_status, u.created_at, COALESCE(d.name, u.department) AS department_name
      FROM users u
      LEFT JOIN departments d ON d.id = u.department_id
      WHERE u.role IN ('security','department')

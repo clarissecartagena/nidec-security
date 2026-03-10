@@ -47,7 +47,7 @@ const Auth = {
   logout() {
     this.user = null;
     sessionStorage.removeItem('nidec_user');
-    window.location.href = 'logout.php';
+    window.location.href = '/logout.php';
   },
 
   isLoggedIn() {
