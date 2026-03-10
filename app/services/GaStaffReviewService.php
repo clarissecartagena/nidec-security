@@ -39,7 +39,7 @@ class GaStaffReviewService
         }
 
         $reportId = (int)($reportRow['id'] ?? 0);
-        $reviewedBy = (int)($currentUser['id'] ?? 0);
+        $reviewedBy = (string)($currentUser['employee_no'] ?? '');
 
         $conn = db();
         $conn->beginTransaction();

@@ -35,7 +35,7 @@ class GaPresidentApprovalModel
         return db_fetch_all($sql, '', $params);
     }
 
-    public function approve(int $reportId, int $decidedBy, string $notes): void
+    public function approve(int $reportId, string $decidedBy, string $notes): void
     {
         db_execute(
             "UPDATE reports SET status = 'sent_to_department', current_reviewer = 'department' WHERE id = ?",
@@ -47,19 +47,19 @@ class GaPresidentApprovalModel
             "INSERT INTO ga_president_approvals (report_id, decided_by, decision, notes, decided_at)
              VALUES (?, ?, 'approved', ?, NOW())
              ON DUPLICATE KEY UPDATE decided_by=VALUES(decided_by), decision=VALUES(decision), notes=VALUES(notes), decided_at=VALUES(decided_at)",
-            'iis',
+            'iss',
             [$reportId, $decidedBy, $notes]
         );
 
         db_execute(
             "INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at)
              VALUES (?, ?, ?, ?, NOW())",
-            'isis',
+            'isss',
             [$reportId, 'sent_to_department', $decidedBy, ($notes === '' ? 'Approved and sent to Department' : $notes)]
         );
     }
 
-    public function returnToGaStaff(int $reportId, int $decidedBy, string $notes): void
+    public function returnToGaStaff(int $reportId, string $decidedBy, string $notes): void
     {
         // Preserve existing behavior (status remains submitted_to_ga_president but reviewer returns to GA Staff)
         db_execute(
@@ -72,19 +72,19 @@ class GaPresidentApprovalModel
             "INSERT INTO ga_president_approvals (report_id, decided_by, decision, notes, decided_at)
              VALUES (?, ?, 'returned', ?, NOW())
              ON DUPLICATE KEY UPDATE decided_by=VALUES(decided_by), decision=VALUES(decision), notes=VALUES(notes), decided_at=VALUES(decided_at)",
-            'iis',
+            'iss',
             [$reportId, $decidedBy, $notes]
         );
 
         db_execute(
             "INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at)
              VALUES (?, ?, ?, ?, NOW())",
-            'isis',
+            'isss',
             [$reportId, 'submitted_to_ga_president', $decidedBy, ($notes === '' ? 'Returned to GA Staff for revision' : $notes)]
         );
     }
 
-    public function reject(int $reportId, int $decidedBy, string $notes): void
+    public function reject(int $reportId, string $decidedBy, string $notes): void
     {
         // Use the dedicated 'rejected' status — distinct from 'resolved' so
         // dashboards and queries can differentiate closed-clean from rejected.
@@ -98,14 +98,14 @@ class GaPresidentApprovalModel
             "INSERT INTO ga_president_approvals (report_id, decided_by, decision, notes, decided_at)
              VALUES (?, ?, 'rejected', ?, NOW())
              ON DUPLICATE KEY UPDATE decided_by=VALUES(decided_by), decision=VALUES(decision), notes=VALUES(notes), decided_at=VALUES(decided_at)",
-            'iis',
+            'iss',
             [$reportId, $decidedBy, $notes]
         );
 
         db_execute(
             "INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at)
              VALUES (?, ?, ?, ?, NOW())",
-            'isis',
+            'isss',
             [$reportId, 'rejected', $decidedBy, ($notes === '' ? 'Rejected by GA President' : $notes)]
         );
     }

@@ -25,7 +25,7 @@ class ReturnedReportsController
             exit;
         }
 
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
 
         $flash = null;
         $flashType = 'success';

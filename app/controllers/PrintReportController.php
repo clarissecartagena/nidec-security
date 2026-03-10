@@ -214,7 +214,7 @@ class PrintReportController
         $memoToTitle = 'GA President';
 
         $pres = db_fetch_one(
-            "SELECT name FROM users WHERE role = 'ga_president' AND (account_status IS NULL OR account_status = 'active') ORDER BY id DESC LIMIT 1"
+            "SELECT name FROM users WHERE role = 'ga_president' AND (account_status IS NULL OR account_status = 'active') ORDER BY created_at DESC LIMIT 1"
         );
         $memoToName = (string)($pres['name'] ?? '');
         if ($memoToName === '') $memoToName = $gaPresidentName;

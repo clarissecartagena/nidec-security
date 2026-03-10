@@ -11,7 +11,7 @@ class SubmitReportService
         $this->model = $model ?: new SubmitReportModel();
     }
 
-    public function handlePost(array $post, array $files, int $userId, string $userBuilding, string $publicDirFs): array
+    public function handlePost(array $post, array $files, string $userId, string $userBuilding, string $publicDirFs): array
     {
         $token = (string)($post['csrf_token'] ?? '');
 
@@ -108,7 +108,7 @@ class SubmitReportService
         }
     }
 
-    private function handleEvidenceUploads(array $files, string $publicDirFs, int $reportId, string $reportNo, int $userId, array &$movedPaths): void
+    private function handleEvidenceUploads(array $files, string $publicDirFs, int $reportId, string $reportNo, string $userId, array &$movedPaths): void
     {
         if (empty($files['evidence']) || !is_array($files['evidence']['name'] ?? null)) {
             return;

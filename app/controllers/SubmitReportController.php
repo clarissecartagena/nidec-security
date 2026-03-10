@@ -29,7 +29,7 @@ class SubmitReportController
             exit;
         }
 
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
         $userBuilding = (string)($currentUser['entity'] ?? '');
         if (!in_array($userBuilding, ['NCFL', 'NPFL'], true)) {
             $flash = 'Your account is missing an assigned building. Please contact General Affairs.';

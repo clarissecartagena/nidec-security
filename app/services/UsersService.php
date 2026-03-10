@@ -20,7 +20,7 @@ class UsersService
      * @param array<string, mixed> $post
      * @return array{flash:?string, flashType:string}
      */
-    public function handlePost(array $post, int $currentUserId): array
+    public function handlePost(array $post, string $currentUserEmployeeNo): array
     {
         $flash = null;
         $flashType = 'success';
@@ -123,7 +123,7 @@ class UsersService
 
                 $flash = 'User added successfully.';
             } elseif ($action === 'update') {
-                $id = (int)($post['id'] ?? 0);
+                $id = trim((string)($post['id'] ?? ''));
                 $name = trim((string)($post['name'] ?? ''));
                 $username = trim((string)($post['username'] ?? ''));
                 $password = (string)($post['password'] ?? '');
@@ -133,7 +133,7 @@ class UsersService
                 $securityType = (string)($post['security_type'] ?? '');
                 $entity = (string)($post['entity'] ?? '');
 
-                if ($id <= 0 || $name === '' || $username === '' || !in_array($role, ['ga_president', 'ga_staff', 'security', 'department'], true)) {
+                if ($id === '' || $name === '' || $username === '' || !in_array($role, ['ga_president', 'ga_staff', 'security', 'department'], true)) {
                     throw new RuntimeException('Invalid update request.');
                 }
 
@@ -142,7 +142,7 @@ class UsersService
                 }
 
                 // Prevent assigning GA President to someone else.
-                $currentRole = $this->model->getUserRoleById($id);
+                $currentRole = $this->model->getUserRoleByEmployeeNo($id);
                 if ($currentRole === null || $currentRole === '') throw new RuntimeException('User not found.');
                 if ($role === 'ga_president' && $currentRole !== 'ga_president') {
                     throw new RuntimeException('You cannot assign the GA President role.');
@@ -175,11 +175,11 @@ class UsersService
 
                 $flash = 'User updated successfully.';
             } elseif ($action === 'delete') {
-                $id = (int)($post['id'] ?? 0);
-                if ($id <= 0) throw new RuntimeException('Invalid delete request.');
-                if ($currentUserId === $id) throw new RuntimeException('You cannot delete your own account.');
+                $id = trim((string)($post['id'] ?? ''));
+                if ($id === '') throw new RuntimeException('Invalid delete request.');
+                if ($currentUserEmployeeNo !== '' && $currentUserEmployeeNo === $id) throw new RuntimeException('You cannot delete your own account.');
 
-                $this->model->deleteUserById($id);
+                $this->model->deleteUserByEmployeeNo($id);
                 $flash = 'User deleted successfully.';
             } else {
                 throw new RuntimeException('Unknown action.');

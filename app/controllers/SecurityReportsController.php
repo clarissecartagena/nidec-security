@@ -25,7 +25,7 @@ class SecurityReportsController
             exit;
         }
 
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
 
         require_once __DIR__ . '/../../includes/header.php';
         require_once __DIR__ . '/../../includes/sidebar.php';

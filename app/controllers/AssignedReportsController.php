@@ -25,7 +25,7 @@ class AssignedReportsController
             exit;
         }
 
-        $uid = (int)($currentUser['id'] ?? 0);
+        $uid = (string)($currentUser['employee_no'] ?? '');
         $deptId = (int)($currentUser['department_id'] ?? 0);
 
         if ($deptId <= 0) {

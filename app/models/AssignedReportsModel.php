@@ -42,7 +42,7 @@ class AssignedReportsModel
         return db_fetch_all($sql, '', $params);
     }
 
-    public function setFixTimeline(int $reportId, int $userId, int $days, string $due): void
+    public function setFixTimeline(int $reportId, string $userId, int $days, string $due): void
     {
         // Optimistic lock: only proceed if the report is still in a department-owned state.
         $affected = db_execute(
@@ -66,18 +66,18 @@ class AssignedReportsModel
                timeline_due=VALUES(timeline_due),
                acted_by=VALUES(acted_by),
                acted_at=VALUES(acted_at)",
-            'iisi',
+            'iiss',
             [$reportId, $days, $due, $userId]
         );
 
         db_execute(
             'INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at) VALUES (?, ?, ?, ?, NOW())',
-            'isis',
+            'isss',
             [$reportId, 'under_department_fix', $userId, 'Fix timeline set: ' . $days . ' day(s)']
         );
     }
 
-    public function markDone(int $reportId, int $userId): void
+    public function markDone(int $reportId, string $userId): void
     {
         // Optimistic lock: prevent double-submission racing with cron auto-escalation.
         $affected = db_execute(
@@ -101,13 +101,13 @@ class AssignedReportsModel
                timeline_due=NULL,
                acted_by=VALUES(acted_by),
                acted_at=VALUES(acted_at)",
-            'ii',
+            'is',
             [$reportId, $userId]
         );
 
         db_execute(
             'INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at) VALUES (?, ?, ?, ?, NOW())',
-            'isis',
+            'isss',
             [$reportId, 'for_security_final_check', $userId, 'Marked as DONE by Department']
         );
     }

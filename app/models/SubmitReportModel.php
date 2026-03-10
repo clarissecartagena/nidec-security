@@ -43,7 +43,7 @@ class SubmitReportModel
         db_execute(
             "INSERT INTO reports (report_no, subject, category, location, severity, building, responsible_department_id, details, actions_taken, remarks, assessment, recommendations, submitted_by, status, current_reviewer, submitted_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted_to_ga_staff', 'ga_staff', NOW())",
-            'ssssssisssssi',
+            'ssssssissssss',
             [
                 $data['report_no'],
                 $data['subject'],
@@ -57,27 +57,27 @@ class SubmitReportModel
                 $data['remarks'],
                 $data['assessment'],
                 $data['recommendations'],
-                (int)$data['submitted_by'],
+                (string)$data['submitted_by'],
             ]
         );
 
         return (int)db_last_insert_id();
     }
 
-    public function insertStatusHistory(int $reportId, string $status, int $changedBy, string $notes): void
+    public function insertStatusHistory(int $reportId, string $status, string $changedBy, string $notes): void
     {
         db_execute(
             'INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at) VALUES (?, ?, ?, ?, NOW())',
-            'isis',
+            'isss',
             [$reportId, $status, $changedBy, $notes]
         );
     }
 
-    public function insertAttachment(int $reportId, string $fileName, string $filePath, string $mimeType, int $fileSizeBytes, int $uploadedBy): void
+    public function insertAttachment(int $reportId, string $fileName, string $filePath, string $mimeType, int $fileSizeBytes, string $uploadedBy): void
     {
         db_execute(
             'INSERT INTO report_attachments (report_id, file_name, file_path, mime_type, file_size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)',
-            'isssii',
+            'isssis',
             [$reportId, $fileName, $filePath, $mimeType, $fileSizeBytes, $uploadedBy]
         );
     }

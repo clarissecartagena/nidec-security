@@ -19,7 +19,7 @@ function _notif_log(string $level, string $msg, array $ctx = []): void
 // Returns true when the same (user, report, message) already exists within
 // $windowSeconds. Used before every insert to guarantee idempotency.
 // ---------------------------------------------------------------------------
-function _notif_already_sent(int $userId, ?int $reportId, string $message, int $windowSeconds = 3600): bool
+function _notif_already_sent(string $userId, ?int $reportId, string $message, int $windowSeconds = 3600): bool
 {
     if ($windowSeconds <= 0) {
         return false;
@@ -30,18 +30,18 @@ function _notif_already_sent(int $userId, ?int $reportId, string $message, int $
         . ' AND message = ?'
         . ' AND created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)'
         . ' LIMIT 1',
-        $reportId !== null ? 'iisi' : 'isi',
+        $reportId !== null ? 'sisi' : 'ssi',
         $reportId !== null ? [$userId, $reportId, $message, $windowSeconds] : [$userId, $message, $windowSeconds]
     );
     return (bool)$row;
 }
 
-function notifications_unread_count(int $userId): int {
-    $row = db_fetch_one('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND is_read = 0', 'i', [$userId]);
+function notifications_unread_count(string $userId): int {
+    $row = db_fetch_one('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND is_read = 0', 's', [$userId]);
     return (int)($row['c'] ?? 0);
 }
 
-function notifications_fetch(int $userId, int $limit = 20): array {
+function notifications_fetch(string $userId, int $limit = 20): array {
     $limit = max(1, min(50, $limit));
 
     // LIMIT cannot be bound in MySQL prepared statements in all modes; inline safely.
@@ -52,23 +52,23 @@ function notifications_fetch(int $userId, int $limit = 20): array {
         . ' ORDER BY n.created_at DESC, n.id DESC'
         . ' LIMIT ' . (int)$limit;
 
-    return db_fetch_all($sql, 'i', [$userId]);
+    return db_fetch_all($sql, 's', [$userId]);
 }
 
-function notifications_mark_read(int $userId, int $notificationId): bool {
+function notifications_mark_read(string $userId, int $notificationId): bool {
     $affected = db_execute(
         'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
-        'ii',
+        'is',
         [$notificationId, $userId]
     );
     return $affected > 0;
 }
 
-function notifications_mark_all_read(int $userId): int {
-    return db_execute('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', 'i', [$userId]);
+function notifications_mark_all_read(string $userId): int {
+    return db_execute('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', 's', [$userId]);
 }
 
-function notify_user(int $userId, ?int $reportId, string $message, int $dedupWindowSeconds = 0): void
+function notify_user(string $userId, ?int $reportId, string $message, int $dedupWindowSeconds = 0): void
 {
     try {
         if ($dedupWindowSeconds > 0 && _notif_already_sent($userId, $reportId, $message, $dedupWindowSeconds)) {
@@ -76,7 +76,7 @@ function notify_user(int $userId, ?int $reportId, string $message, int $dedupWin
         }
         db_execute(
             'INSERT INTO notifications (user_id, report_id, message, is_read, created_at) VALUES (?, ?, ?, 0, NOW())',
-            'iis',
+            'sis',
             [$userId, $reportId, $message]
         );
     } catch (Throwable $e) {
@@ -93,8 +93,8 @@ function notify_users(array $userIds, ?int $reportId, string $message, int $dedu
 {
     $unique = [];
     foreach ($userIds as $id) {
-        $id = (int)$id;
-        if ($id > 0) $unique[$id] = true;
+        $id = (string)$id;
+        if ($id !== '') $unique[$id] = true;
     }
 
     foreach (array_keys($unique) as $uid) {
@@ -145,7 +145,7 @@ function notify_role(
         $types   .= 'i';
     }
 
-    $rows = db_fetch_all('SELECT id FROM users WHERE ' . $where, $types, $params);
+    $rows = db_fetch_all('SELECT employee_no FROM users WHERE ' . $where, $types, $params);
 
     if (empty($rows)) {
         _notif_log('warning', 'notify_role: no active users found', [
@@ -156,6 +156,7 @@ function notify_role(
         return;
     }
 
-    $ids = array_map(static fn($r) => (int)$r['id'], $rows);
+    $ids = array_map(static fn($r) => (string)($r['employee_no'] ?? ''), $rows);
+    $ids = array_filter($ids, static fn($id) => $id !== '');
     notify_users($ids, $reportId, $message, $dedupWindowSeconds);
 }

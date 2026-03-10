@@ -646,7 +646,7 @@ function build_filters(array $get, array $user, string $role): array {
     // If the logged-in user is Security (internal/external), only show analytics for that group.
     $securityType = strtolower(trim((string)($user['security_type'] ?? '')));
     if ($role === 'security' && in_array($securityType, ['internal', 'external'], true)) {
-        $where[] = 'EXISTS (SELECT 1 FROM users su WHERE su.id = r.submitted_by AND su.security_type = ?)';
+        $where[] = 'EXISTS (SELECT 1 FROM users su WHERE su.employee_no = r.submitted_by AND su.security_type = ?)';
         $params[] = $securityType;
         $types .= 's';
     }
@@ -654,11 +654,11 @@ function build_filters(array $get, array $user, string $role): array {
     if ($effectiveBuilding) {
         if ($role === 'security') {
             // Security users see reports in their building OR reports they personally submitted
-            $userId = (int)($user['id'] ?? 0);
+            $userId = (string)($user['employee_no'] ?? '');
             $where[] = '(r.building = ? OR r.submitted_by = ?)';
             $params[] = $effectiveBuilding;
             $params[] = $userId;
-            $types .= 'si';
+            $types .= 'ss';
         } else {
             $where[] = 'r.building = ?';
             $params[] = $effectiveBuilding;
