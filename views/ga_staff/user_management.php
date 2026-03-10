@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = db_fetch_all(
-    "SELECT u.id, u.name, u.username, u.role, u.department_id, u.security_type, u.building, u.account_status, u.created_at, d.name AS department_name
+    "SELECT u.id, u.employee_id, u.name, u.username, u.role, u.department_id, u.security_type, u.building, u.account_status, u.created_at, d.name AS department_name
      FROM users u
      LEFT JOIN departments d ON d.id = u.department_id
      WHERE u.role IN ('security','department')
@@ -247,6 +247,7 @@ function user_role_label(string $role): string {
             <table>
                 <thead>
                     <tr>
+                        <th>Emp ID</th>
                         <th>Name</th>
                         <th>Username</th>
                         <th>Role</th>
@@ -257,10 +258,11 @@ function user_role_label(string $role): string {
                 </thead>
                 <tbody>
                     <?php if (empty($users)): ?>
-                        <tr><td colspan="6" class="text-center text-muted-foreground">No users found.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted-foreground">No users found.</td></tr>
                     <?php else: ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
+                                <td class="font-mono text-xs"><?php echo htmlspecialchars($u['employee_id'] ?? '—'); ?></td>
                                 <td class="font-medium"><?php echo htmlspecialchars($u['name']); ?></td>
                                 <td class="font-mono text-xs"><?php echo htmlspecialchars($u['username']); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars(user_role_label($u['role'])); ?></td>
@@ -725,7 +727,11 @@ function user_role_label(string $role): string {
             const results = document.getElementById('emp-search-results');
             if (results) results.classList.add('hidden');
 
-            const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+            // Use exact employee_id lookup for all-digit input; free-text search otherwise.
+            const isNumericId = /^\d+$/.test(query);
+            const url = isNumericId
+                ? this._empApiUrl + '?employee_id=' + encodeURIComponent(query)
+                : this._empApiUrl + '?q=' + encodeURIComponent(query);
 
             fetch(url, { credentials: 'same-origin' })
                 .then(r => {

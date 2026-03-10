@@ -66,6 +66,24 @@ function already_exists(string $employeeId, string $username): bool
     return (bool)$byUsername;
 }
 
+/**
+ * Resolve a local department ID from a department name returned by the API.
+ * Returns 0 when the name is blank or no matching department exists.
+ */
+function department_id_by_name(string $name): int
+{
+    $name = trim($name);
+    if ($name === '') {
+        return 0;
+    }
+    $row = db_fetch_one(
+        'SELECT id FROM departments WHERE LOWER(name) = ? LIMIT 1',
+        's',
+        [strtolower($name)]
+    );
+    return $row ? (int)$row['id'] : 0;
+}
+
 // ── Main loop ──────────────────────────────────────────────────────────────
 
 $provisioned = 0;
@@ -115,6 +133,12 @@ foreach ($allowed as $entry) {
     $securityType = (string)($entry['security_type'] ?? '');
     $building     = (string)($entry['building']      ?? '');
     $departmentId = (int)($entry['department_id']    ?? 0);
+
+    // If department_id is not set in config, resolve it from the dept name
+    // returned by the Employee API so it is stored correctly.
+    if ($departmentId === 0) {
+        $departmentId = department_id_by_name((string)($emp['department'] ?? ''));
+    }
 
     try {
         $model->insertUser(

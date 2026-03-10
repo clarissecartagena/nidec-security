@@ -121,7 +121,13 @@ class AllowedUsersService
         $role         = (string)($config['role']          ?? 'department');
         $securityType = $config['security_type'] ?? null;
         $building     = $config['building']      ?? null;
-        $departmentId = $config['department_id'] ?? null;
+        $departmentId = (int)($config['department_id'] ?? 0);
+
+        // If department_id is not set in config, try to resolve it from the
+        // department name returned by the Employee API.
+        if ($departmentId === 0) {
+            $departmentId = $this->departmentIdByName((string)($emp['department'] ?? ''));
+        }
 
         try {
             $this->usersModel->insertUser(
@@ -134,7 +140,7 @@ class AllowedUsersService
                 $role,
                 (string)($securityType ?? ''),
                 (string)($building     ?? ''),
-                (int)($departmentId    ?? 0),
+                (int)$departmentId,
                 'active'
             );
         } catch (Throwable $e) {
@@ -144,5 +150,27 @@ class AllowedUsersService
 
         // Return the freshly inserted record so the caller can open a session.
         return $this->usersModel->findProvisionedUser($employeeId, $resolvedUsername);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Resolve a local department ID from a department name string returned
+     * by the Employee API.  Returns 0 when no match is found.
+     */
+    private function departmentIdByName(string $name): int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return 0;
+        }
+        $row = db_fetch_one(
+            'SELECT id FROM departments WHERE LOWER(name) = ? LIMIT 1',
+            's',
+            [strtolower($name)]
+        );
+        return $row ? (int)$row['id'] : 0;
     }
 }

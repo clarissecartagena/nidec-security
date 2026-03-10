@@ -165,11 +165,28 @@ class EmployeeApiClient
     /**
      * Build a full endpoint URL.
      *
+     * When the resolved base URL already points to a PHP file (e.g.
+     * "http://10.216.8.90/dummy_hris/api.php"), it IS the endpoint — appending
+     * a script name like "get_employees.php" would produce a broken path such as
+     * "api.php/get_employees.php" that causes the server to ignore query
+     * parameters and return wrong (default) data.
+     *
+     * When the base URL is a directory (e.g. "http://localhost/nidec_api_mock"),
+     * the script name is appended as normal.
+     *
      * @param array<string, string|int> $params
      */
     private function buildUrl(string $script, array $params = []): string
     {
-        $base = rtrim($this->baseUrl, '/') . '/' . ltrim($script, '/');
+        $urlPath = (string)(parse_url($this->baseUrl, PHP_URL_PATH) ?? '');
+
+        // If the base URL already ends in a PHP file, use it directly.
+        if (substr($urlPath, -4) === '.php') {
+            $base = $this->baseUrl;
+        } else {
+            $base = rtrim($this->baseUrl, '/') . '/' . ltrim($script, '/');
+        }
+
         return $params !== [] ? $base . '?' . http_build_query($params) : $base;
     }
 
