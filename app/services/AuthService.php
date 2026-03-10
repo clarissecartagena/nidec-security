@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../models/UserModel.php';
 require_once __DIR__ . '/../api_clients/LoginApiClient.php';
+require_once __DIR__ . '/AllowedUsersService.php';
 
 class AuthService {
     /** @var UserModel */
@@ -9,6 +10,9 @@ class AuthService {
 
     /** @var LoginApiClient */
     private $loginApi;
+
+    /** @var AllowedUsersService */
+    private $allowedUsers;
 
     /**
      * Employee ID prefix → role mapping.
@@ -22,9 +26,10 @@ class AuthService {
         'SC3' => 'security',       // Security personnel
     ];
 
-    public function __construct(?UserModel $users = null, ?LoginApiClient $loginApi = null) {
-        $this->users    = $users    ?: new UserModel();
-        $this->loginApi = $loginApi ?: new LoginApiClient();
+    public function __construct(?UserModel $users = null, ?LoginApiClient $loginApi = null, ?AllowedUsersService $allowedUsers = null) {
+        $this->users        = $users        ?: new UserModel();
+        $this->loginApi     = $loginApi     ?: new LoginApiClient();
+        $this->allowedUsers = $allowedUsers ?: new AllowedUsersService();
     }
 
     public function user(): ?array {
@@ -76,6 +81,13 @@ class AuthService {
             $user = ($employeeId !== '') ? $this->users->findByEmployeeId($employeeId) : null;
             if (!$user) {
                 $user = $this->users->findByUsername($username);
+            }
+
+            // Auto-provision: if the employee is on the allowed list but does
+            // not yet have a local account, create one now using their Employee
+            // API profile data.
+            if (!$user && $employeeId !== '' && $this->allowedUsers->isAllowed($employeeId)) {
+                $user = $this->allowedUsers->provision($employeeId, $username);
             }
 
             if ($user && trim(strtolower((string)($user['account_status'] ?? ''))) === 'active') {

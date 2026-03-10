@@ -85,6 +85,46 @@ class UsersModel
         db_execute('DELETE FROM users WHERE id=?', 'i', [$id]);
     }
 
+    /**
+     * Look up a just-provisioned user by employee_id or username.
+     * Returns the full record (including department_name join) needed for
+     * session creation, or null when no matching row is found.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function findProvisionedUser(string $employeeId, string $username): ?array
+    {
+        // Try by employee_id first (most reliable).
+        $user = db_fetch_one(
+            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
+                    u.username, u.password_hash, u.role, u.account_status,
+                    u.department_id, u.security_type, u.building,
+                    d.name AS department_name
+             FROM users u
+             LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.employee_id = ? LIMIT 1',
+            's',
+            [$employeeId]
+        );
+
+        if ($user) {
+            return $user;
+        }
+
+        // Fall back to username lookup.
+        return db_fetch_one(
+            'SELECT u.id, u.employee_id, u.name, u.email, u.position,
+                    u.username, u.password_hash, u.role, u.account_status,
+                    u.department_id, u.security_type, u.building,
+                    d.name AS department_name
+             FROM users u
+             LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.username = ? LIMIT 1',
+            's',
+            [$username]
+        ) ?: null;
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function getAllUsers(): array
     {
