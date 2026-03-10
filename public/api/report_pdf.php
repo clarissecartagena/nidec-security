@@ -68,26 +68,30 @@ $sql = "SELECT
         r.security_remarks,
         r.fix_due_date,
         d.name AS department_name,
-        u_submit.name          AS submitted_by_name,
-        u_submit.security_type AS submitted_by_security_type,
+        u_submit.name           AS submitted_by_name,
+        u_submit.security_type  AS submitted_by_security_type,
+        u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at,
-        gasr.notes             AS ga_staff_notes,
-        u_staff.name           AS ga_staff_reviewer,
+        gasr.notes              AS ga_staff_notes,
+        u_staff.name            AS ga_staff_reviewer,
+        u_staff.signature_path  AS ga_staff_signature,
         gapa.decided_at,
-        gapa.decision          AS ga_president_decision,
-        gapa.notes             AS ga_president_notes,
-        u_pres.name            AS ga_president_name,
+        gapa.decision           AS ga_president_decision,
+        gapa.notes              AS ga_president_notes,
+        u_pres.name             AS ga_president_name,
+        u_pres.signature_path   AS ga_president_signature,
         da.action_type,
         da.timeline_days,
         da.timeline_start,
         da.timeline_due,
-        da.remarks             AS dept_remarks,
-        da.acted_at            AS dept_acted_at,
-        u_dept.name            AS dept_acted_by,
-        sfc.checked_at         AS final_checked_at,
-        sfc.decision           AS final_decision,
-        sfc.remarks            AS final_remarks,
-        u_sec.name             AS final_checked_by,
+        da.remarks              AS dept_remarks,
+        da.acted_at             AS dept_acted_at,
+        u_dept.name             AS dept_acted_by,
+        u_dept.signature_path   AS dept_signature,
+        sfc.checked_at          AS final_checked_at,
+        sfc.decision            AS final_decision,
+        sfc.remarks             AS final_remarks,
+        u_sec.name              AS final_checked_by,
         sfc.closed_at
      FROM reports r
      JOIN departments d         ON d.id = r.responsible_department_id
@@ -438,19 +442,118 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         }
     }
 
-    // ── Signature ─────────────────────────────────────────────────────────────
+    // ── Signatory blocks ──────────────────────────────────────────────────────
     $y -= 30;
-    if ($y < 150) $start_new_page();
-    $officerName  = strtoupper((string)($report['submitted_by_name'] ?? 'OFFICER NAME'));
-    $officerBuilding = strtoupper((string)($report['building'] ?? 'NCFL'));
+    if ($y < 200) $start_new_page();
 
-    // FIX #4: use the correct agency label based on $template
-    $agencyLabel = ($template === 'internal') ? 'Internal Security' : 'External Security';
+    // Build the list of signatories to render.
+    // A signatory appears only once they have "passed" the report to the next stage.
+    $signatories = [];
 
-    $content .= pdf_text($marginL, $y, 'F1', 11, 'Prepared by:'); $y -= 45;
-    $content .= pdf_text($marginL, $y, 'F2', 11, $officerName);   $y -= 14;
-    $content .= pdf_text($marginL, $y, 'F1', 10, $officerBuilding . ' / Security Officer'); $y -= 12;
-    $content .= pdf_text($marginL, $y, 'F1', 10, $agencyLabel);
+    // 1. Security — always shown (they submitted / passed to GA Staff)
+    $signatories[] = [
+        'label' => 'Prepared by:',
+        'name'  => strtoupper((string)($report['submitted_by_name'] ?? 'OFFICER NAME')),
+        'line1' => strtoupper((string)($report['building'] ?? 'NCFL')) . ' / Security Officer',
+        'line2' => ($template === 'internal') ? 'Internal Security' : 'External Security',
+        'sig'   => $report['submitted_by_signature'] ?? null,
+        'key'   => 'security',
+    ];
+
+    // 2. GA Staff — shown once they forwarded the report to GA Manager
+    if (!empty($report['reviewed_at'])) {
+        $signatories[] = [
+            'label' => 'Reviewed by:',
+            'name'  => strtoupper((string)($report['ga_staff_reviewer'] ?? '')),
+            'line1' => 'GA Staff',
+            'line2' => null,
+            'sig'   => $report['ga_staff_signature'] ?? null,
+            'key'   => 'gastaff',
+        ];
+    }
+
+    // 3. GA President/Manager — shown once they approved/decided
+    if (!empty($report['decided_at'])) {
+        $signatories[] = [
+            'label' => 'Approved by:',
+            'name'  => strtoupper((string)($report['ga_president_name'] ?? '')),
+            'line1' => 'GA Manager',
+            'line2' => null,
+            'sig'   => $report['ga_president_signature'] ?? null,
+            'key'   => 'gapresident',
+        ];
+    }
+
+    // 4. Department/PIC — shown once they acted on the report
+    if (!empty($report['dept_acted_at'])) {
+        $signatories[] = [
+            'label' => 'Acknowledged by:',
+            'name'  => strtoupper((string)($report['dept_acted_by'] ?? '')),
+            'line1' => strtoupper((string)($report['department_name'] ?? 'Department')),
+            'line2' => null,
+            'sig'   => $report['dept_signature'] ?? null,
+            'key'   => 'dept',
+        ];
+    }
+
+    // Load signature images and register them as XObjects alongside evidence images
+    $sigImgMaxH = 45.0;
+    foreach ($signatories as &$sig) {
+        if (empty($sig['sig'])) continue;
+        $sigImgPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$sig['sig']);
+        if (!is_file($sigImgPath)) continue;
+        $sigImgData = build_pdf_image_objects_from_rgba($sigImgPath);
+        if (!$sigImgData) continue;
+        $sigRef = 'ImSig' . $sig['key'];
+        $evidenceImageObjects[$sigRef] = $sigImgData;
+        $sig['img_ref'] = $sigRef;
+        $sig['img_w']   = $sigImgData['w'];
+        $sig['img_h']   = $sigImgData['h'];
+    }
+    unset($sig);
+
+    // Draw signatory columns across the page width
+    $numSigs  = count($signatories);
+    $colWidth = (float)($pageW - $marginL - $marginR) / max($numSigs, 1);
+    $sigAreaH = $sigImgMaxH + 8.0; // vertical space reserved for signature image
+    // Total block height: label + sig area + underline gap + name + 2 title lines
+    $blockH   = 14.0 + $sigAreaH + 16.0 + 13.0 + 13.0;
+
+    foreach ($signatories as $ci => $sig) {
+        $cx = (float)$marginL + $ci * $colWidth;
+
+        // Label ("Prepared by:", etc.)
+        $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
+
+        // Signature image drawn above the name line
+        if (!empty($sig['img_ref'])) {
+            $iw    = (float)$sig['img_w'];
+            $ih    = (float)$sig['img_h'];
+            $scale = min($sigImgMaxH / $ih, ($colWidth - 4.0) / $iw);
+            $dw    = $iw * $scale;
+            $dh    = $ih * $scale;
+            $imgY  = $y - 14.0 - $dh;
+            $ref   = $sig['img_ref'];
+            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$ref Do\nQ\n", $dw, $dh, $cx, $imgY);
+        }
+
+        // Name and titles (below the signature area)
+        $nameBaseY = $y - 14.0 - $sigAreaH;
+        // Underline above name
+        $content .= pdf_line($cx, $nameBaseY - 2.0, $cx + $colWidth - 6.0, $nameBaseY - 2.0, 0.5);
+        // Name
+        $content .= pdf_text($cx, $nameBaseY - 15.0, 'F2', 9, $sig['name']);
+        // Title line 1
+        if (!empty($sig['line1'])) {
+            $content .= pdf_text($cx, $nameBaseY - 28.0, 'F1', 8, $sig['line1']);
+        }
+        // Title line 2
+        if (!empty($sig['line2'])) {
+            $content .= pdf_text($cx, $nameBaseY - 39.0, 'F1', 8, $sig['line2']);
+        }
+    }
+
+    $y -= $blockH;
 
     // ── Assemble PDF objects ──────────────────────────────────────────────────
     if ($content !== '') $pages[] = $content;

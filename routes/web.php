@@ -220,6 +220,18 @@ $router->post('/notifications.php', function (Request $req, Response $res): void
 });
 
 // ─────────────────────────────────────────────
+// Profile
+// ─────────────────────────────────────────────
+$router->get('/profile.php', function (Request $req, Response $res): void {
+    require_once __DIR__ . '/../app/controllers/ProfileController.php';
+    (new ProfileController())->index();
+});
+$router->post('/profile.php', function (Request $req, Response $res): void {
+    require_once __DIR__ . '/../app/controllers/ProfileController.php';
+    (new ProfileController())->index();
+});
+
+// ─────────────────────────────────────────────
 // Download
 // ─────────────────────────────────────────────
 $router->get('/download.php', function (Request $req, Response $res): void {

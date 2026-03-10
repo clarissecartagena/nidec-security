@@ -47,6 +47,7 @@ if ($user && ($user['role'] ?? '') === 'ga_president') {
         'reports.php',
         'users.php',
         'statistics.php',
+        'profile.php',
         'logout.php',
     ];
 
@@ -66,6 +67,7 @@ if ($user && ($user['role'] ?? '') === 'ga_staff') {
         'returned-reports.php',
         'ga_staff/user_management.php',
         'ga_staff/statistics.php',
+        'profile.php',
         'logout.php',
     ];
 
@@ -84,6 +86,7 @@ if ($user && ($user['role'] ?? '') === 'security') {
         'final-checking.php',
         'security-reports.php',
         'security-statistics.php',
+        'profile.php',
         'logout.php',
     ];
 
@@ -101,6 +104,7 @@ if ($user && ($user['role'] ?? '') === 'department') {
         'assigned-reports.php',
         'department-history.php',
         'department-statistics.php',
+        'profile.php',
         'logout.php',
     ];
 
