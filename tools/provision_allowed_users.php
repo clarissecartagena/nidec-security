@@ -53,7 +53,7 @@ $employeeService = new EmployeeService();
 function already_exists(string $employeeNo): bool
 {
     $row = db_fetch_one(
-        'SELECT id FROM users WHERE employee_no = ? LIMIT 1',
+        'SELECT employee_no FROM users WHERE employee_no = ? LIMIT 1',
         's',
         [$employeeNo]
     );
