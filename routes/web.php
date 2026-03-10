@@ -158,6 +158,10 @@ $router->get('/print_report.php', function (Request $req, Response $res): void {
     require_once __DIR__ . '/../app/controllers/PrintReportController.php';
     (new PrintReportController())->show();
 });
+$router->get('/view-report.php', function (Request $req, Response $res): void {
+    require_once __DIR__ . '/../app/controllers/ReportViewController.php';
+    (new ReportViewController())->show();
+});
 $router->get('/print_report_by_no.php', function (Request $req, Response $res): void {
     require_once __DIR__ . '/../app/controllers/PrintReportByNoController.php';
     (new PrintReportByNoController())->redirect();

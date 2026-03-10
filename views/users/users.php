@@ -13,7 +13,7 @@ function getUserStatusBadge($status) {
                 <h1 class="h4 fw-bold text-foreground mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>User Management</h1>
                 <p class="text-sm text-muted-foreground mb-0">Manage system users and their roles</p>
             </div>
-            <button onclick="UsersPage.toggleModal('add-user-modal')" class="btn btn-primary d-inline-flex align-items-center gap-2">
+            <button onclick="UsersPage.openAddModal()" class="btn btn-primary d-inline-flex align-items-center gap-2">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i>
                 Add User
             </button>
@@ -91,6 +91,7 @@ function getUserStatusBadge($status) {
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Emp ID</th>
                         <th>Username</th>
                         <th>Role</th>
                         <th>Department</th>
@@ -100,11 +101,12 @@ function getUserStatusBadge($status) {
                 </thead>
                 <tbody id="users-table">
                     <?php if (empty($users)): ?>
-                        <tr><td colspan="6" class="text-center text-muted-foreground">No users found.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted-foreground">No users found.</td></tr>
                     <?php else: ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
                                 <td class="font-medium"><?php echo htmlspecialchars($u['name']); ?></td>
+                                <td class="font-mono text-xs text-muted-foreground"><?php echo htmlspecialchars($u['employee_id'] ?? '—'); ?></td>
                                 <td class="font-mono text-xs"><?php echo htmlspecialchars($u['username']); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars(str_replace('_', ' ', $u['role'])); ?></td>
                                 <td class="text-muted-foreground"><?php echo htmlspecialchars($u['department_name'] ?? '—'); ?></td>
@@ -115,6 +117,7 @@ function getUserStatusBadge($status) {
                                             onclick="UsersPage.openEditModal(this)"
                                             data-user="<?php echo htmlspecialchars(json_encode([
                                                 'id' => (int)$u['id'],
+                                                'employee_id' => (string)($u['employee_id'] ?? ''),
                                                 'name' => (string)$u['name'],
                                                 'username' => (string)$u['username'],
                                                 'role' => (string)$u['role'],
@@ -147,78 +150,158 @@ function getUserStatusBadge($status) {
             </div>
         </div>
 
-        <!-- Add User Modal -->
+        <!-- Add User Modal — two-step: search employee → set credentials/role -->
         <div id="add-user-modal" class="modal-overlay hidden">
             <div class="modal modal--accent">
                 <div class="modal-accent-header">
                     <div>
                         <h2 class="modal-accent-title">Add New User</h2>
-                        <p class="modal-accent-subtitle">Create a new account (defaults to Active)</p>
+                        <p class="modal-accent-subtitle">Search the company employee directory first</p>
                     </div>
-                    <button type="button" class="modal-accent-close" aria-label="Close" onclick="UsersPage.toggleModal('add-user-modal')">
+                    <button type="button" class="modal-accent-close" aria-label="Close" onclick="UsersPage.closeAddModal()">
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="modal-accent-body">
-                    <form method="POST" class="row g-3" id="add-user-form">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
-                        <input type="hidden" name="action" value="add" />
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Name</label>
-                            <input type="text" class="form-control form-control-sm" name="name" required placeholder="Enter full name" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Username</label>
-                            <input type="text" class="form-control form-control-sm" name="username" required placeholder="Enter username" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Password</label>
-                            <input type="password" class="form-control form-control-sm" name="password" required placeholder="Enter password" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Role</label>
-                            <select name="role" class="form-select form-select-sm" required id="add-role">
-                                <option value="" selected disabled>Select role</option>
-                                <option value="ga_staff">GA Staff</option>
-                                <option value="security">Security</option>
-                                <option value="department">Department</option>
-                            </select>
+                    <!-- ── Step 1: Employee search ─────────────────────────────── -->
+                    <div id="add-step-search">
+                        <div class="mb-3">
+                            <label class="form-label text-sm font-medium text-foreground mb-1" for="emp-search-input">
+                                Search Employee
+                            </label>
+                            <div class="input-group">
+                                <input type="text" id="emp-search-input"
+                                    class="form-control form-control-sm"
+                                    placeholder="Employee ID or Full Name (min 2 characters)…"
+                                    autocomplete="off" />
+                                <button type="button" class="btn btn-primary btn-sm" id="emp-search-btn">
+                                    <i class="bi bi-search me-1" aria-hidden="true"></i>Search
+                                </button>
+                            </div>
+                            <div class="form-text text-xs">
+                                Data is fetched from the company employee directory.
+                            </div>
                         </div>
 
-                        <div id="add-department-wrap" class="hidden col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Department</label>
-                            <select name="department_id" class="form-select form-select-sm" id="add-department-id">
-                                <option value="0">—</option>
-                                <?php foreach ($departmentsDb as $d): ?>
-                                    <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div id="emp-search-loader" class="text-center py-3 hidden" aria-live="polite">
+                            <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                            <span class="ms-2 text-sm text-muted-foreground">Searching…</span>
                         </div>
 
-                        <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
-                            <select name="security_type" class="form-select form-select-sm" id="add-security-type">
-                                <option value="" selected disabled>Select type</option>
-                                <option value="internal">Internal</option>
-                                <option value="external">External</option>
-                            </select>
+                        <div id="emp-search-alert" class="alert alert-danger text-sm py-2 mb-0 hidden" role="alert"></div>
+
+                        <div id="emp-search-results" class="hidden">
+                            <p class="text-xs text-muted-foreground mb-2">Select an employee to continue:</p>
+                            <div id="emp-results-list" class="d-flex flex-column gap-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── Step 2: Confirm employee + set credentials / role ───── -->
+                    <div id="add-step-form" class="hidden">
+
+                        <!-- Read-only employee info card (source: API) -->
+                        <div class="p-3 mb-4 rounded border" style="background: var(--surface-2, #f8f9fa)">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-xs text-muted-foreground fw-semibold text-uppercase letter-spacing-wide">
+                                    Selected Employee
+                                </span>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-xs"
+                                    onclick="UsersPage.resetAddModal()">
+                                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Change
+                                </button>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Employee ID</div>
+                                    <div class="text-sm fw-medium font-mono" id="emp-card-id">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Full Name</div>
+                                    <div class="text-sm fw-medium" id="emp-card-name">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Department</div>
+                                    <div class="text-sm" id="emp-card-dept">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Position</div>
+                                    <div class="text-sm" id="emp-card-pos">—</div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="text-xs text-muted-foreground">Email</div>
+                                    <div class="text-sm" id="emp-card-email">—</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div id="add-building-wrap" class="hidden col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                            <select name="building" class="form-select form-select-sm" id="add-building">
-                                <option value="" selected disabled>Select building</option>
-                                <option value="NCFL">NCFL</option>
-                                <option value="NPFL">NPFL</option>
-                            </select>
-                        </div>
+                        <form method="POST" class="row g-3" id="add-user-form">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
+                            <input type="hidden" name="action" value="add" />
+                            <input type="hidden" name="employee_id" id="add-employee-id" />
 
-                        <div class="modal-footer col-12 d-flex justify-content-end gap-2 flex-wrap">
-                            <button type="button" onclick="UsersPage.toggleModal('add-user-modal')" class="btn btn-outline">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add User</button>
-                        </div>
-                    </form>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1" for="add-username">
+                                    Username
+                                </label>
+                                <input type="text" class="form-control form-control-sm" name="username"
+                                    id="add-username" required placeholder="Login username"
+                                    autocomplete="off" />
+                                <div class="form-text text-xs">Used to log in to the system.</div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Password</label>
+                                <input type="password" class="form-control form-control-sm" name="password"
+                                    required placeholder="Set initial password"
+                                    autocomplete="new-password" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Role</label>
+                                <select name="role" class="form-select form-select-sm" required id="add-role">
+                                    <option value="" selected disabled>Select role</option>
+                                    <option value="ga_staff">GA Staff</option>
+                                    <option value="security">Security</option>
+                                    <option value="department">Department</option>
+                                </select>
+                            </div>
+
+                            <div id="add-department-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Department</label>
+                                <select name="department_id" class="form-select form-select-sm" id="add-department-id">
+                                    <option value="0">—</option>
+                                    <?php foreach ($departmentsDb as $d): ?>
+                                        <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
+                                <select name="security_type" class="form-select form-select-sm" id="add-security-type">
+                                    <option value="" selected disabled>Select type</option>
+                                    <option value="internal">Internal</option>
+                                    <option value="external">External</option>
+                                </select>
+                            </div>
+
+                            <div id="add-building-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Building</label>
+                                <select name="building" class="form-select form-select-sm" id="add-building">
+                                    <option value="" selected disabled>Select building</option>
+                                    <option value="NCFL">NCFL</option>
+                                    <option value="NPFL">NPFL</option>
+                                </select>
+                            </div>
+
+                            <div class="modal-footer col-12 d-flex justify-content-end gap-2 flex-wrap">
+                                <button type="button" onclick="UsersPage.closeAddModal()" class="btn btn-outline">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-person-check me-1" aria-hidden="true"></i>Add User
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -369,7 +452,9 @@ function getUserStatusBadge($status) {
 <script>
     const UsersPage = window.UsersPage = {
         currentUserId: <?php echo (int)$currentUser['id']; ?>,
+        _empApiUrl: '<?php echo htmlspecialchars(app_url('api/employee_search.php'), ENT_QUOTES, 'UTF-8'); ?>',
 
+    // ── Modal helpers ─────────────────────────────────────────────────────
     toggleModal(modalId) {
       const modal = document.getElementById(modalId);
       if (!modal) return;
@@ -384,6 +469,7 @@ function getUserStatusBadge($status) {
       }
     },
 
+    // ── Init ──────────────────────────────────────────────────────────────
     init() {
       const addRole = document.getElementById('add-role');
       if (addRole) {
@@ -396,10 +482,20 @@ function getUserStatusBadge($status) {
         editRole.addEventListener('change', () => this.syncConditionalFields('edit'));
       }
 
+      // Employee search bindings
+      const empInput = document.getElementById('emp-search-input');
+      const empBtn   = document.getElementById('emp-search-btn');
+      if (empInput) {
+        empInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); this.doEmployeeSearch(); }
+        });
+      }
+      if (empBtn) empBtn.addEventListener('click', () => this.doEmployeeSearch());
+
       const addModal = document.getElementById('add-user-modal');
       if (addModal) {
         addModal.addEventListener('click', (e) => {
-          if (e.target === addModal) this.toggleModal('add-user-modal');
+          if (e.target === addModal) this.closeAddModal();
         });
       }
 
@@ -410,28 +506,216 @@ function getUserStatusBadge($status) {
         });
       }
 
-            const deleteModal = document.getElementById('delete-user-modal');
-            if (deleteModal) {
-                deleteModal.addEventListener('click', (e) => {
-                    if (e.target === deleteModal) this.closeDeleteModal();
-                });
-            }
+      const deleteModal = document.getElementById('delete-user-modal');
+      if (deleteModal) {
+        deleteModal.addEventListener('click', (e) => {
+          if (e.target === deleteModal) this.closeDeleteModal();
+        });
+      }
+
+      // Loading state: disable submit button while form is submitting
+      ['add-user-form', 'edit-user-form', 'delete-user-form'].forEach(id => {
+        const form = document.getElementById(id);
+        if (form) {
+          form.addEventListener('submit', () => {
+            const btn = form.querySelector('[type="submit"]');
+            if (btn && !btn.disabled) btn.setAttribute('data-loading', 'true');
+          });
+        }
+      });
     },
 
+    // ── Add User (employee-search flow) ──────────────────────────────────
+    openAddModal() {
+      this.resetAddModal();
+      this.toggleModal('add-user-modal');
+    },
+
+    closeAddModal() {
+      const modal = document.getElementById('add-user-modal');
+      if (modal && !modal.classList.contains('hidden')) this.toggleModal('add-user-modal');
+      this.resetAddModal();
+    },
+
+    resetAddModal() {
+      const stepSearch = document.getElementById('add-step-search');
+      const stepForm   = document.getElementById('add-step-form');
+      if (stepSearch) stepSearch.classList.remove('hidden');
+      if (stepForm)   stepForm.classList.add('hidden');
+
+      const empInput = document.getElementById('emp-search-input');
+      if (empInput) empInput.value = '';
+
+      const resultsList = document.getElementById('emp-results-list');
+      if (resultsList) resultsList.innerHTML = '';
+
+      const resultsBox = document.getElementById('emp-search-results');
+      if (resultsBox) resultsBox.classList.add('hidden');
+
+      this._showSearchAlert(null);
+
+      const empIdField = document.getElementById('add-employee-id');
+      if (empIdField) empIdField.value = '';
+
+      const form = document.getElementById('add-user-form');
+      if (form) form.reset();
+
+      this.syncConditionalFields('add');
+    },
+
+    doEmployeeSearch() {
+      const input = document.getElementById('emp-search-input');
+      const query = input ? input.value.trim() : '';
+
+      if (query.length < 2) {
+        this._showSearchAlert('Please enter at least 2 characters.');
+        return;
+      }
+
+      this._setSearchLoading(true);
+      this._showSearchAlert(null);
+
+      const resultsBox = document.getElementById('emp-search-results');
+      if (resultsBox) resultsBox.classList.add('hidden');
+
+      const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+
+      fetch(url, { credentials: 'same-origin' })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => {
+          this._setSearchLoading(false);
+          if (!data.success) {
+            this._showSearchAlert(data.error || 'Search failed. Please try again.');
+            return;
+          }
+          const employees = Array.isArray(data.employees) ? data.employees : [];
+          if (employees.length === 0) {
+            this._showSearchAlert('No employees found for "' + query + '".');
+            return;
+          }
+          this._renderResults(employees, !!data.using_mock);
+        })
+        .catch(() => {
+          this._setSearchLoading(false);
+          this._showSearchAlert('Network error. Please check your connection and try again.');
+        });
+    },
+
+    selectEmployee(emp) {
+      const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = (val && String(val).trim()) ? String(val) : '—';
+      };
+
+      set('emp-card-id',    emp.employee_id);
+      set('emp-card-name',  emp.fullname);
+      set('emp-card-dept',  emp.department);
+      set('emp-card-pos',   emp.position);
+      set('emp-card-email', emp.email);
+
+      const empIdField = document.getElementById('add-employee-id');
+      if (empIdField) empIdField.value = emp.employee_id || '';
+
+      // Pre-fill username suggestion from employee_id
+      const usernameField = document.getElementById('add-username');
+      if (usernameField && !usernameField.value && emp.employee_id) {
+        usernameField.value = String(emp.employee_id).toLowerCase();
+      }
+
+      const stepSearch = document.getElementById('add-step-search');
+      const stepForm   = document.getElementById('add-step-form');
+      if (stepSearch) stepSearch.classList.add('hidden');
+      if (stepForm)   stepForm.classList.remove('hidden');
+    },
+
+    _setSearchLoading(loading) {
+      const loader = document.getElementById('emp-search-loader');
+      const btn    = document.getElementById('emp-search-btn');
+      if (loader) loader.classList.toggle('hidden', !loading);
+      if (btn)    btn.disabled = loading;
+    },
+
+    _showSearchAlert(msg) {
+      const el = document.getElementById('emp-search-alert');
+      if (!el) return;
+      if (msg) {
+        el.textContent = msg;
+        el.classList.remove('hidden');
+      } else {
+        el.textContent = '';
+        el.classList.add('hidden');
+      }
+    },
+
+    _renderResults(employees, usingMock) {
+      const list      = document.getElementById('emp-results-list');
+      const container = document.getElementById('emp-search-results');
+      if (!list || !container) return;
+
+      list.innerHTML = '';
+
+      employees.forEach(emp => {
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center justify-content-between gap-3 p-2 rounded border bg-body';
+        row.style.cursor = 'pointer';
+
+        const info = document.createElement('div');
+        info.className = 'overflow-hidden';
+
+        const nameLine = document.createElement('div');
+        nameLine.className = 'text-sm fw-medium text-truncate';
+        nameLine.textContent = emp.fullname || '—';
+
+        const subLine = document.createElement('div');
+        subLine.className = 'text-xs text-muted-foreground text-truncate';
+        subLine.textContent = [emp.employee_id, emp.department, emp.position]
+          .filter(v => v && String(v).trim())
+          .join(' · ');
+
+        info.appendChild(nameLine);
+        info.appendChild(subLine);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline py-1 px-2 flex-shrink-0';
+        btn.textContent = 'Select';
+
+        row.appendChild(info);
+        row.appendChild(btn);
+
+        row.addEventListener('click', () => this.selectEmployee(emp));
+        list.appendChild(row);
+      });
+
+      if (usingMock) {
+        const notice = document.createElement('div');
+        notice.className = 'alert alert-warning text-xs py-1 mt-2 mb-0';
+        notice.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>'
+          + 'Development mode: data from local mock API.';
+        list.appendChild(notice);
+      }
+
+      container.classList.remove('hidden');
+    },
+
+    // ── Role-conditional fields ───────────────────────────────────────────
     syncConditionalFields(prefix) {
       const roleEl = document.getElementById(prefix + '-role');
       if (!roleEl) return;
       const role = roleEl.value;
 
-      const deptWrap = document.getElementById(prefix + '-department-wrap');
-      const deptSelect = document.getElementById(prefix + '-department-id');
-      const secWrap = document.getElementById(prefix + '-security-type-wrap');
-      const secSelect = document.getElementById(prefix + '-security-type');
-    const buildingWrap = document.getElementById(prefix + '-building-wrap');
-    const buildingSelect = document.getElementById(prefix + '-building');
+      const deptWrap     = document.getElementById(prefix + '-department-wrap');
+      const deptSelect   = document.getElementById(prefix + '-department-id');
+      const secWrap      = document.getElementById(prefix + '-security-type-wrap');
+      const secSelect    = document.getElementById(prefix + '-security-type');
+      const buildingWrap = document.getElementById(prefix + '-building-wrap');
+      const buildingSelect = document.getElementById(prefix + '-building');
 
       const isDepartment = role === 'department';
-      const isSecurity = role === 'security';
+      const isSecurity   = role === 'security';
 
       if (deptWrap) deptWrap.classList.toggle('hidden', !isDepartment);
       if (deptSelect) deptSelect.required = isDepartment;
@@ -441,11 +725,12 @@ function getUserStatusBadge($status) {
       if (secSelect) secSelect.required = isSecurity;
       if (!isSecurity && secSelect) secSelect.value = '';
 
-            if (buildingWrap) buildingWrap.classList.toggle('hidden', !isSecurity);
-            if (buildingSelect) buildingSelect.required = isSecurity;
-            if (!isSecurity && buildingSelect) buildingSelect.value = '';
+      if (buildingWrap) buildingWrap.classList.toggle('hidden', !isSecurity);
+      if (buildingSelect) buildingSelect.required = isSecurity;
+      if (!isSecurity && buildingSelect) buildingSelect.value = '';
     },
 
+    // ── Edit modal ────────────────────────────────────────────────────────
     openEditModal(btn) {
       const raw = btn && btn.dataset ? btn.dataset.user : '';
       if (!raw) return;
@@ -462,10 +747,9 @@ function getUserStatusBadge($status) {
       const presidentOpt = document.getElementById('edit-role-president');
       const isPresident = user.role === 'ga_president';
       if (presidentOpt) {
-        presidentOpt.hidden = !isPresident;
+        presidentOpt.hidden   = !isPresident;
         presidentOpt.disabled = !isPresident;
       }
-
       if (roleEl) {
         roleEl.value = user.role || 'ga_staff';
         if (!isPresident && roleEl.value === 'ga_president') roleEl.value = 'ga_staff';
@@ -477,8 +761,8 @@ function getUserStatusBadge($status) {
       const secSelect = document.getElementById('edit-security-type');
       if (secSelect) secSelect.value = user.security_type || '';
 
-            const buildingSelect = document.getElementById('edit-building');
-            if (buildingSelect) buildingSelect.value = user.building || '';
+      const buildingSelect = document.getElementById('edit-building');
+      if (buildingSelect) buildingSelect.value = user.building || '';
 
       this.syncConditionalFields('edit');
       this.toggleModal('edit-user-modal');
@@ -486,38 +770,35 @@ function getUserStatusBadge($status) {
 
     closeEditModal() {
       const modal = document.getElementById('edit-user-modal');
-      if (modal && !modal.classList.contains('hidden')) {
-        this.toggleModal('edit-user-modal');
-      }
-        },
+      if (modal && !modal.classList.contains('hidden')) this.toggleModal('edit-user-modal');
+    },
 
-        openDeleteModal(btn) {
-            const raw = btn && btn.dataset ? btn.dataset.user : '';
-            if (!raw) return;
-            let user;
-            try { user = JSON.parse(raw); } catch { return; }
+    // ── Delete modal ──────────────────────────────────────────────────────
+    openDeleteModal(btn) {
+      const raw = btn && btn.dataset ? btn.dataset.user : '';
+      if (!raw) return;
+      let user;
+      try { user = JSON.parse(raw); } catch { return; }
 
-            const id = Number(user.id) || 0;
-            document.getElementById('delete-user-id').value = String(id);
-            document.getElementById('delete-user-name').textContent = user.name || '—';
-            document.getElementById('delete-user-username').textContent = user.username || '—';
-            document.getElementById('delete-user-role').textContent = (user.role || '—').replace(/_/g, ' ');
-            document.getElementById('delete-user-dept').textContent = user.department ? String(user.department) : '—';
+      const id = Number(user.id) || 0;
+      document.getElementById('delete-user-id').value = String(id);
+      document.getElementById('delete-user-name').textContent = user.name || '—';
+      document.getElementById('delete-user-username').textContent = user.username || '—';
+      document.getElementById('delete-user-role').textContent = (user.role || '—').replace(/_/g, ' ');
+      document.getElementById('delete-user-dept').textContent = user.department ? String(user.department) : '—';
 
-            const isSelf = id > 0 && this.currentUserId === id;
-            const warn = document.getElementById('delete-self-warning');
-            const submitBtn = document.getElementById('delete-user-submit');
-            if (warn) warn.classList.toggle('hidden', !isSelf);
-            if (submitBtn) submitBtn.disabled = !!isSelf;
+      const isSelf    = id > 0 && this.currentUserId === id;
+      const warn      = document.getElementById('delete-self-warning');
+      const submitBtn = document.getElementById('delete-user-submit');
+      if (warn)      warn.classList.toggle('hidden', !isSelf);
+      if (submitBtn) submitBtn.disabled = !!isSelf;
 
-            this.toggleModal('delete-user-modal');
-        },
+      this.toggleModal('delete-user-modal');
+    },
 
-        closeDeleteModal() {
-            const modal = document.getElementById('delete-user-modal');
-            if (modal && !modal.classList.contains('hidden')) {
-                this.toggleModal('delete-user-modal');
-            }
+    closeDeleteModal() {
+      const modal = document.getElementById('delete-user-modal');
+      if (modal && !modal.classList.contains('hidden')) this.toggleModal('delete-user-modal');
     }
   };
 

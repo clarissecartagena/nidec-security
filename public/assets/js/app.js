@@ -2430,6 +2430,8 @@ const ReportModal = {
   contentEl: null,
   subjectEl: null,
   downloadBtn: null,
+  copyLinkBtn: null,
+  viewPdfBtn: null,
   actionBtnsEl: null,
   notesAreaEl: null,
   notesInputEl: null,
@@ -2444,6 +2446,8 @@ const ReportModal = {
     this.contentEl = document.getElementById('modal-report-content');
     this.subjectEl = document.getElementById('modal-report-subject');
     this.downloadBtn = document.getElementById('modal-download-pdf');
+    this.copyLinkBtn = document.getElementById('modal-copy-link');
+    this.viewPdfBtn  = document.getElementById('modal-view-pdf');
     this.actionBtnsEl = document.getElementById('modal-action-buttons');
     this.notesAreaEl  = document.getElementById('modal-notes-area');
     this.notesInputEl = document.getElementById('modal-action-notes-input');
@@ -2475,6 +2479,38 @@ const ReportModal = {
             
             // Use window.open instead of triggerDownload to ensure the preview/download works
             window.open(url, '_blank'); 
+        });
+    }
+
+    if (this.viewPdfBtn) {
+        this.viewPdfBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!this.currentReportNo) return;
+            const url = appUrl('api/report_pdf.php?id=' + encodeURIComponent(String(this.currentReportNo)) + '&preview=1');
+            window.open(url, '_blank');
+        });
+    }
+
+    if (this.copyLinkBtn) {
+        this.copyLinkBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!this.currentReportNo) return;
+            const path = appUrl('view-report.php?id=' + encodeURIComponent(String(this.currentReportNo)));
+            // Always produce a full absolute URL so it works when pasted into a new tab
+            // or shared with another machine.
+            const url = path.startsWith('http') ? path : (window.location.origin + path);
+            navigator.clipboard.writeText(url).then(() => {
+                const origHtml = this.copyLinkBtn.innerHTML;
+                this.copyLinkBtn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
+                this.copyLinkBtn.title = 'Link copied!';
+                setTimeout(() => {
+                    this.copyLinkBtn.innerHTML = origHtml;
+                    this.copyLinkBtn.title = 'Copy shareable link';
+                }, 2000);
+            }).catch(() => {
+                // Fallback: prompt so user can copy manually
+                window.prompt('Copy this link:', url);
+            });
         });
     }
 
@@ -2527,6 +2563,8 @@ const ReportModal = {
 
     // Open immediately with loading state
     if (this.subjectEl) this.subjectEl.textContent = 'Loading...';
+    const reportNoEl = document.getElementById('modal-report-no');
+    if (reportNoEl) reportNoEl.textContent = reportId ? String(reportId).trim() : '';
     if (this.contentEl) this.contentEl.innerHTML = '<div class="text-sm text-muted-foreground">Loading report details...</div>';
     this.overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -2556,13 +2594,13 @@ const ReportModal = {
                 const submittedByStr = String(report.submittedBy || '').toLowerCase();
                 
                 // 2. CHECK: Does the name contain "(external)"?
-                const isExternal = submittedByStr.includes('(external)');
+                                // Use the securityType field returned directly from the API.
+                // Falls back to 'internal' if the field is missing.
+                const rawSecType = String(report.securityType || '').toLowerCase().trim();
+                this.currentSecurityType = (rawSecType === 'external') ? 'external' : 'internal';
 
-                // 3. ASSIGN the template type
-                this.currentSecurityType = isExternal ? 'external' : 'internal';
-                
                 console.log('[ReportModal] Detection Success!');
-                console.log(' - Submitted By:', report.submittedBy);
+                console.log(' - securityType from API:', report.securityType);
                 console.log(' - Template assigned:', this.currentSecurityType);
             }
           }
@@ -2585,11 +2623,15 @@ const ReportModal = {
       this.syncDownloadButton();
 
       if (this.subjectEl) this.subjectEl.textContent = report.subject || 'Report Details';
+      const reportNoEl = document.getElementById('modal-report-no');
+      if (reportNoEl) reportNoEl.textContent = this.currentReportNo || '';
       if (this.contentEl) this.contentEl.innerHTML = this.renderReportContent(report);
       this._lastReportStatus = report.status || '';
       this.renderActionFooter(report);
     } catch (err) {
       if (this.subjectEl) this.subjectEl.textContent = 'Report Details';
+      const errReportNoEl = document.getElementById('modal-report-no');
+      if (errReportNoEl) errReportNoEl.textContent = reportId ? String(reportId).trim() : '';
       if (this.contentEl) this.contentEl.innerHTML = '<div class="alert alert-error">' + (err && err.message ? err.message : 'Unable to load report.') + '</div>';
       this.currentReportDbId = null;
       this.currentReportNo = reportId ? String(reportId).trim() : null;
@@ -2603,6 +2645,15 @@ const ReportModal = {
     this.downloadBtn.disabled = !enabled;
     this.downloadBtn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     this.downloadBtn.title = enabled ? 'Download PDF (server-generated)' : 'Loading report…';
+
+    if (this.viewPdfBtn) {
+      this.viewPdfBtn.disabled = !enabled;
+      this.viewPdfBtn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    }
+    if (this.copyLinkBtn) {
+      this.copyLinkBtn.disabled = !enabled;
+      this.copyLinkBtn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    }
   },
 
   triggerDownload(url) {
@@ -2632,6 +2683,8 @@ const ReportModal = {
     if (this.actionBtnsEl) this.actionBtnsEl.innerHTML = '';
     if (this.notesAreaEl)  this.notesAreaEl.style.display = 'none';
     if (this.notesInputEl) this.notesInputEl.value = '';
+    const reportNoEl = document.getElementById('modal-report-no');
+    if (reportNoEl) reportNoEl.textContent = '';
     this.currentReportDbId = null;
     this.currentReportNo = null;
     this.syncDownloadButton();

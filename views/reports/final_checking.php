@@ -96,46 +96,6 @@
     border-color: hsl(var(--destructive) / 0.3);
 }
 
-/* Remarks modal */
-.fc-modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: 1050;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-.fc-modal-overlay.active { display: flex; }
-.fc-modal {
-    background: hsl(var(--card));
-    border-radius: var(--radius);
-    border: 1px solid hsl(var(--border));
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-    animation: fcModalIn 0.18s ease;
-}
-@keyframes fcModalIn {
-    from { opacity:0; transform: scale(0.96) translateY(8px); }
-    to   { opacity:1; transform: scale(1)    translateY(0); }
-}
-.fc-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid hsl(var(--border));
-}
-.fc-modal-body { padding: 1.25rem; }
-.fc-modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 0.85rem 1.25rem;
-    border-top: 1px solid hsl(var(--border));
-}
 </style>
 
 <main class="main-content">
@@ -249,18 +209,18 @@
 </main>
 
 <!-- ── Remarks Modal ── -->
-<div id="fc-modal-overlay" class="fc-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="fc-modal-title">
-    <div class="fc-modal">
-        <div class="fc-modal-header">
+<div id="fc-modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="fc-modal-title">
+    <div class="report-modal report-modal--sm">
+        <div class="report-modal-header">
             <div>
-                <h5 class="fw-bold text-foreground mb-0" id="fc-modal-title">Add Remarks</h5>
-                <p class="text-xs text-muted-foreground mb-0" id="fc-modal-subtitle"></p>
+                <h3 id="fc-modal-title">Add Remarks</h3>
+                <p class="modal-header-subtitle" id="fc-modal-subtitle"></p>
             </div>
             <button type="button" class="modal-close-btn" onclick="FCRemarks.close()">
                 <i class="bi bi-x-lg"></i>
             </button>
         </div>
-        <div class="fc-modal-body">
+        <div class="report-modal-body" style="padding: 1.25rem;">
             <label for="fc-remarks-input" class="form-label fw-medium">
                 Remarks <span class="text-danger">*</span>
             </label>
@@ -270,7 +230,7 @@
                 <i class="bi bi-info-circle me-1"></i>Required — will be saved in report history.
             </p>
         </div>
-        <div class="fc-modal-footer">
+        <div class="report-modal-footer">
             <button type="button" class="btn btn-ghost btn-sm" onclick="FCRemarks.close()">Cancel</button>
             <button type="button" id="fc-modal-confirm-btn" class="btn btn-sm d-inline-flex align-items-center gap-1" onclick="FCRemarks.submit()">
                 <!-- label set dynamically -->

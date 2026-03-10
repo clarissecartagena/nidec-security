@@ -104,15 +104,6 @@ require_once __DIR__ . '/../../includes/header.php';
         opacity: 0.9;
     }
 
-    .role-select:hover {
-        background-color: #b1dfbb !important;
-    }
-    
-    .role-select:focus {
-        background-color: #c3e6cb !important;
-        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
-        outline: none !important;
-    }
 </style>
 
 <div class="vh-100 d-flex align-items-center justify-content-center overflow-hidden" 
@@ -153,29 +144,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div id="alert-box" class="alert alert-danger alert-error mb-4 hidden" role="alert"></div>
 
                         <form method="POST" action="" id="login-form">
-
-                            <div class="mb-4 text-center">
-                                <select id="role" name="role" class="form-select border-0 shadow-sm px-3 role-select" required 
-                                        style="background-color: #c3e6cb; 
-                                            color: #155724; 
-                                            text-align: center; 
-                                            text-align-last: center; 
-                                            font-weight: 800; 
-                                            font-size: 0.9rem;
-                                            letter-spacing: 0.05rem;
-                                            height: 50px; /* Matching height to your input fields */
-                                            border-radius: 8px;
-                                            cursor: pointer; 
-                                            width: 90%; 
-                                            margin: 0 auto;
-                                            transition: background-color 0.2s ease;">
-                                    <option value="" disabled selected>SELECT YOUR ROLE</option>
-                                    <option value="ga_president">GA MANAGER</option>
-                                    <option value="ga_staff">GA STAFF</option>
-                                    <option value="security">SECURITY</option>
-                                    <option value="department">PERSON IN CHARGE</option>
-                                </select>
-                            </div>
 
                             <div class="mb-3">
                                 <label for="username" class="form-label fw-semibold d-block custom-label">Username</label>

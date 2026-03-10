@@ -5,7 +5,10 @@
 <div id="report-modal-overlay" class="modal-overlay">
     <div id="report-modal" class="report-modal">
         <div class="report-modal-header">
-            <h3 id="modal-report-subject">Report Details</h3>
+            <div>
+                <h3 id="modal-report-subject">Report Details</h3>
+                <p class="modal-header-subtitle" id="modal-report-no"></p>
+            </div>
             <button class="modal-close-btn" type="button" aria-label="Close" onclick="ReportModal.close()">
                 <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
@@ -21,6 +24,12 @@
         <div class="report-modal-footer">
             <!-- Role-specific action buttons (populated by JS) -->
             <div id="modal-action-buttons" style="display:contents;"></div>
+            <button id="modal-copy-link" class="btn btn-outline-secondary" type="button" title="Copy shareable link" disabled>
+                <i class="bi bi-link-45deg" aria-hidden="true"></i>
+            </button>
+            <button id="modal-view-pdf" class="btn btn-outline-primary" type="button" disabled>
+                <i class="bi bi-eye" aria-hidden="true"></i> View PDF
+            </button>
             <button id="modal-download-pdf" class="btn btn-primary" type="button" disabled>Download PDF</button>
             <button class="btn btn-outline-secondary" type="button" onclick="ReportModal.close()">Close</button>
         </div>

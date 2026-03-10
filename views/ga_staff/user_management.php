@@ -5,6 +5,7 @@ $requiredRole = 'ga_staff';
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 require_once __DIR__ . '/../../includes/topnav.php';
+require_once __DIR__ . '/../../app/services/EmployeeService.php';
 
 $flash = null;
 $flashType = 'success';
@@ -39,16 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             if ($action === 'add') {
-                $name = trim($_POST['name'] ?? '');
-                $username = trim($_POST['username'] ?? '');
-                $password = (string)($_POST['password'] ?? '');
-                $role = (string)($_POST['role'] ?? '');
+                $employeeId   = trim($_POST['employee_id'] ?? '');
+                $username     = trim($_POST['username'] ?? '');
+                $password     = (string)($_POST['password'] ?? '');
+                $role         = (string)($_POST['role'] ?? '');
                 $departmentId = (int)($_POST['department_id'] ?? 0);
                 $securityType = (string)($_POST['security_type'] ?? '');
-                $building = (string)($_POST['building'] ?? '');
+                $building     = (string)($_POST['building'] ?? '');
                 $accountStatus = 'active';
 
-                if ($name === '' || $username === '' || $password === '') {
+                if ($employeeId === '' || $username === '' || $password === '') {
                     throw new RuntimeException('Please fill in all required fields.');
                 }
 
@@ -57,13 +58,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Unauthorized Role Creation');
                 }
 
+                // Verify employee via company API (prevents POST spoofing)
+                $empSvc    = new EmployeeService();
+                $empResult = $empSvc->getEmployee($employeeId);
+                if (!$empResult['success']) {
+                    throw new RuntimeException(
+                        'Employee verification failed: '
+                        . ($empResult['error'] ?? 'Employee not found.')
+                    );
+                }
+                $emp = $empResult['employee'];
+
                 if ($role !== 'department') {
                     $departmentId = 0;
                 }
 
                 if ($role !== 'security') {
                     $securityType = '';
-                    $building = '';
+                    $building     = '';
                 } else {
                     if (!in_array($securityType, ['internal', 'external'], true)) {
                         throw new RuntimeException('Please select a valid Security Type.');
@@ -75,10 +87,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 db_execute(
-                    "INSERT INTO users (name, username, password_hash, role, department_id, security_type, building, account_status, created_by_role, created_by_user_id)
-                     VALUES (?, ?, ?, ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?, 'ga_staff', ?)",
-                    'ssssisssi',
-                    [$name, $username, $hash, $role, $departmentId, $securityType, $building, $accountStatus, $currentUserId]
+                    "INSERT INTO users
+                         (employee_id, name, email, position, username, password_hash,
+                          role, department_id, security_type, building, account_status,
+                          created_by_role, created_by_user_id)
+                     VALUES
+                         (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), ?, ?,
+                          ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
+                          'ga_staff', ?)",
+                    '',
+                    [
+                        $emp['employee_id'], $emp['fullname'],
+                        $emp['email'],       $emp['position'],
+                        $username,           $hash,
+                        $role, $departmentId, $securityType, $building, $accountStatus,
+                        $currentUserId,
+                    ]
                 );
 
                 $flash = 'User added successfully.';
@@ -192,7 +216,7 @@ function user_role_label(string $role): string {
                 <h1 class="h4 fw-bold text-foreground mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>User Management</h1>
                 <p class="text-sm text-muted-foreground mb-0">GA Staff can manage Security and Department accounts</p>
             </div>
-            <button type="button" onclick="UsersPage.toggleModal('add-user-modal')" class="btn btn-primary d-inline-flex align-items-center gap-2">
+            <button type="button" onclick="UsersPage.openAddModal()" class="btn btn-primary d-inline-flex align-items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14"/><path d="M12 5v14"/>
                 </svg>
@@ -284,15 +308,15 @@ function user_role_label(string $role): string {
             </table>
         </div>
 
-        <!-- Add User Modal -->
+        <!-- Add User Modal — two-step: search employee → set credentials/role -->
         <div id="add-user-modal" class="modal-overlay hidden">
             <div class="modal modal--accent">
                 <div class="modal-accent-header">
                     <div>
                         <h2 class="modal-accent-title">Add New User</h2>
-                        <p class="modal-accent-subtitle">Create a new account (defaults to Active)</p>
+                        <p class="modal-accent-subtitle">Search the company employee directory first</p>
                     </div>
-                    <button type="button" class="modal-accent-close" aria-label="Close" onclick="UsersPage.toggleModal('add-user-modal')">
+                    <button type="button" class="modal-accent-close" aria-label="Close" onclick="UsersPage.closeAddModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/>
                             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -300,64 +324,140 @@ function user_role_label(string $role): string {
                     </button>
                 </div>
                 <div class="modal-accent-body">
-                    <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4" id="add-user-form">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
-                        <input type="hidden" name="action" value="add" />
 
-                        <div>
-                            <label class="block text-sm font-medium text-foreground mb-1">Name</label>
-                            <input type="text" name="name" required placeholder="Enter full name" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-foreground mb-1">Username</label>
-                            <input type="text" name="username" required placeholder="Enter username" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-foreground mb-1">Password</label>
-                            <input type="password" name="password" required placeholder="Enter password" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-foreground mb-1">Role</label>
-                            <select name="role" required id="add-role">
-                                <option value="" selected disabled>Select role</option>
-                                <option value="security">Security</option>
-                                <option value="department">Department</option>
-                            </select>
+                    <!-- Step 1: Employee search -->
+                    <div id="add-step-search">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-foreground mb-1" for="emp-search-input">
+                                Search Employee
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="text" id="emp-search-input"
+                                    class="flex-1"
+                                    placeholder="Employee ID or Full Name (min 2 characters)…"
+                                    autocomplete="off" />
+                                <button type="button" id="emp-search-btn" class="btn btn-primary">
+                                    Search
+                                </button>
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Data is fetched from the company employee directory.
+                            </p>
                         </div>
 
-                        <div id="add-department-wrap" class="hidden">
-                            <label class="block text-sm font-medium text-foreground mb-1">Department</label>
-                            <select name="department_id" id="add-department-id">
-                                <option value="0">—</option>
-                                <?php foreach ($departmentsDb as $d): ?>
-                                    <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div id="emp-search-loader" class="text-center py-3 hidden" aria-live="polite">
+                            <span class="text-sm text-muted-foreground">Searching…</span>
                         </div>
 
-                        <div id="add-security-type-wrap" class="hidden">
-                            <label class="block text-sm font-medium text-foreground mb-1">Security Type</label>
-                            <select name="security_type" id="add-security-type">
-                                <option value="" selected disabled>Select type</option>
-                                <option value="internal">Internal</option>
-                                <option value="external">External</option>
-                            </select>
+                        <div id="emp-search-alert" class="alert alert-error text-sm py-2 mb-0 hidden" role="alert"></div>
+
+                        <div id="emp-search-results" class="hidden">
+                            <p class="text-xs text-muted-foreground mb-2">Select an employee to continue:</p>
+                            <div id="emp-results-list" class="flex flex-col gap-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Confirm employee + set credentials / role -->
+                    <div id="add-step-form" class="hidden">
+
+                        <div class="p-3 mb-4 rounded border" style="background: var(--surface-2, #f8f9fa)">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-muted-foreground font-semibold uppercase">
+                                    Selected Employee
+                                </span>
+                                <button type="button" class="btn btn-link text-xs p-0"
+                                    onclick="UsersPage.resetAddModal()">
+                                    ← Change
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <div class="text-xs text-muted-foreground">Employee ID</div>
+                                    <div class="text-sm font-medium font-mono" id="emp-card-id">—</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-muted-foreground">Full Name</div>
+                                    <div class="text-sm font-medium" id="emp-card-name">—</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-muted-foreground">Department</div>
+                                    <div class="text-sm" id="emp-card-dept">—</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-muted-foreground">Position</div>
+                                    <div class="text-sm" id="emp-card-pos">—</div>
+                                </div>
+                                <div class="col-span-2">
+                                    <div class="text-xs text-muted-foreground">Email</div>
+                                    <div class="text-sm" id="emp-card-email">—</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div id="add-building-wrap" class="hidden">
-                            <label class="block text-sm font-medium text-foreground mb-1">Assigned Building</label>
-                            <select name="building" id="add-building">
-                                <option value="" selected disabled>Select building</option>
-                                <option value="NCFL">NCFL</option>
-                                <option value="NPFL">NPFL</option>
-                            </select>
-                        </div>
+                        <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4" id="add-user-form">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
+                            <input type="hidden" name="action" value="add" />
+                            <input type="hidden" name="employee_id" id="add-employee-id" />
 
-                        <div class="modal-footer md:col-span-2">
-                            <button type="button" onclick="UsersPage.toggleModal('add-user-modal')" class="btn btn-outline">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add User</button>
-                        </div>
-                    </form>
+                            <div>
+                                <label class="block text-sm font-medium text-foreground mb-1" for="add-username">
+                                    Username
+                                </label>
+                                <input type="text" name="username" id="add-username"
+                                    required placeholder="Login username"
+                                    autocomplete="off" />
+                                <p class="text-xs text-muted-foreground mt-1">Used to log in to the system.</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-foreground mb-1">Password</label>
+                                <input type="password" name="password"
+                                    required placeholder="Set initial password"
+                                    autocomplete="new-password" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-foreground mb-1">Role</label>
+                                <select name="role" required id="add-role">
+                                    <option value="" selected disabled>Select role</option>
+                                    <option value="security">Security</option>
+                                    <option value="department">Department</option>
+                                </select>
+                            </div>
+
+                            <div id="add-department-wrap" class="hidden">
+                                <label class="block text-sm font-medium text-foreground mb-1">Department</label>
+                                <select name="department_id" id="add-department-id">
+                                    <option value="0">—</option>
+                                    <?php foreach ($departmentsDb as $d): ?>
+                                        <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div id="add-security-type-wrap" class="hidden">
+                                <label class="block text-sm font-medium text-foreground mb-1">Security Type</label>
+                                <select name="security_type" id="add-security-type">
+                                    <option value="" selected disabled>Select type</option>
+                                    <option value="internal">Internal</option>
+                                    <option value="external">External</option>
+                                </select>
+                            </div>
+
+                            <div id="add-building-wrap" class="hidden">
+                                <label class="block text-sm font-medium text-foreground mb-1">Assigned Building</label>
+                                <select name="building" id="add-building">
+                                    <option value="" selected disabled>Select building</option>
+                                    <option value="NCFL">NCFL</option>
+                                    <option value="NPFL">NPFL</option>
+                                </select>
+                            </div>
+
+                            <div class="modal-footer md:col-span-2">
+                                <button type="button" onclick="UsersPage.closeAddModal()" class="btn btn-outline">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Add User</button>
+                            </div>
+                        </form>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -512,6 +612,7 @@ function user_role_label(string $role): string {
 <script>
     const UsersPage = window.UsersPage = {
         currentUserId: <?php echo (int)$currentUserId; ?>,
+        _empApiUrl: '<?php echo htmlspecialchars(app_url('api/employee_search.php'), ENT_QUOTES, 'UTF-8'); ?>',
 
         toggleModal(modalId) {
             const modal = document.getElementById(modalId);
@@ -539,10 +640,20 @@ function user_role_label(string $role): string {
                 editRole.addEventListener('change', () => this.syncConditionalFields('edit'));
             }
 
+            // Employee search bindings
+            const empInput = document.getElementById('emp-search-input');
+            const empBtn   = document.getElementById('emp-search-btn');
+            if (empInput) {
+                empInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); this.doEmployeeSearch(); }
+                });
+            }
+            if (empBtn) empBtn.addEventListener('click', () => this.doEmployeeSearch());
+
             const addModal = document.getElementById('add-user-modal');
             if (addModal) {
                 addModal.addEventListener('click', (e) => {
-                    if (e.target === addModal) this.toggleModal('add-user-modal');
+                    if (e.target === addModal) this.closeAddModal();
                 });
             }
 
@@ -561,20 +672,193 @@ function user_role_label(string $role): string {
             }
         },
 
+        // ── Add User (employee-search flow) ──────────────────────────────
+        openAddModal() {
+            this.resetAddModal();
+            this.toggleModal('add-user-modal');
+        },
+
+        closeAddModal() {
+            const modal = document.getElementById('add-user-modal');
+            if (modal && !modal.classList.contains('hidden')) this.toggleModal('add-user-modal');
+            this.resetAddModal();
+        },
+
+        resetAddModal() {
+            const stepSearch = document.getElementById('add-step-search');
+            const stepForm   = document.getElementById('add-step-form');
+            if (stepSearch) stepSearch.classList.remove('hidden');
+            if (stepForm)   stepForm.classList.add('hidden');
+
+            const empInput = document.getElementById('emp-search-input');
+            if (empInput) empInput.value = '';
+
+            const list = document.getElementById('emp-results-list');
+            if (list) list.innerHTML = '';
+
+            const results = document.getElementById('emp-search-results');
+            if (results) results.classList.add('hidden');
+
+            this._showSearchAlert(null);
+
+            const empIdField = document.getElementById('add-employee-id');
+            if (empIdField) empIdField.value = '';
+
+            const form = document.getElementById('add-user-form');
+            if (form) form.reset();
+
+            this.syncConditionalFields('add');
+        },
+
+        doEmployeeSearch() {
+            const input = document.getElementById('emp-search-input');
+            const query = input ? input.value.trim() : '';
+
+            if (query.length < 2) {
+                this._showSearchAlert('Please enter at least 2 characters.');
+                return;
+            }
+
+            this._setSearchLoading(true);
+            this._showSearchAlert(null);
+
+            const results = document.getElementById('emp-search-results');
+            if (results) results.classList.add('hidden');
+
+            const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+
+            fetch(url, { credentials: 'same-origin' })
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    this._setSearchLoading(false);
+                    if (!data.success) {
+                        this._showSearchAlert(data.error || 'Search failed. Please try again.');
+                        return;
+                    }
+                    const employees = Array.isArray(data.employees) ? data.employees : [];
+                    if (employees.length === 0) {
+                        this._showSearchAlert('No employees found for "' + query + '".');
+                        return;
+                    }
+                    this._renderResults(employees, !!data.using_mock);
+                })
+                .catch(() => {
+                    this._setSearchLoading(false);
+                    this._showSearchAlert('Network error. Please check your connection and try again.');
+                });
+        },
+
+        selectEmployee(emp) {
+            const set = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = (val && String(val).trim()) ? String(val) : '—';
+            };
+
+            set('emp-card-id',    emp.employee_id);
+            set('emp-card-name',  emp.fullname);
+            set('emp-card-dept',  emp.department);
+            set('emp-card-pos',   emp.position);
+            set('emp-card-email', emp.email);
+
+            const empIdField = document.getElementById('add-employee-id');
+            if (empIdField) empIdField.value = emp.employee_id || '';
+
+            const usernameField = document.getElementById('add-username');
+            if (usernameField && !usernameField.value && emp.employee_id) {
+                usernameField.value = String(emp.employee_id).toLowerCase();
+            }
+
+            const stepSearch = document.getElementById('add-step-search');
+            const stepForm   = document.getElementById('add-step-form');
+            if (stepSearch) stepSearch.classList.add('hidden');
+            if (stepForm)   stepForm.classList.remove('hidden');
+        },
+
+        _setSearchLoading(loading) {
+            const loader = document.getElementById('emp-search-loader');
+            const btn    = document.getElementById('emp-search-btn');
+            if (loader) loader.classList.toggle('hidden', !loading);
+            if (btn)    btn.disabled = loading;
+        },
+
+        _showSearchAlert(msg) {
+            const el = document.getElementById('emp-search-alert');
+            if (!el) return;
+            if (msg) {
+                el.textContent = msg;
+                el.classList.remove('hidden');
+            } else {
+                el.textContent = '';
+                el.classList.add('hidden');
+            }
+        },
+
+        _renderResults(employees, usingMock) {
+            const list      = document.getElementById('emp-results-list');
+            const container = document.getElementById('emp-search-results');
+            if (!list || !container) return;
+
+            list.innerHTML = '';
+            employees.forEach(emp => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3 p-2 rounded border cursor-pointer';
+                row.style.cursor = 'pointer';
+
+                const info = document.createElement('div');
+
+                const nameLine = document.createElement('div');
+                nameLine.className = 'text-sm font-medium';
+                nameLine.textContent = emp.fullname || '—';
+
+                const subLine = document.createElement('div');
+                subLine.className = 'text-xs text-muted-foreground';
+                subLine.textContent = [emp.employee_id, emp.department, emp.position]
+                    .filter(v => v && String(v).trim())
+                    .join(' · ');
+
+                info.appendChild(nameLine);
+                info.appendChild(subLine);
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-sm btn-outline';
+                btn.textContent = 'Select';
+
+                row.appendChild(info);
+                row.appendChild(btn);
+
+                row.addEventListener('click', () => this.selectEmployee(emp));
+                list.appendChild(row);
+            });
+
+            if (usingMock) {
+                const notice = document.createElement('div');
+                notice.className = 'alert alert-warning text-xs py-1 mt-2 mb-0';
+                notice.textContent = '⚠ Development mode: data from local mock API.';
+                list.appendChild(notice);
+            }
+
+            container.classList.remove('hidden');
+        },
+
+        // ── Role-conditional fields ───────────────────────────────────────
         syncConditionalFields(prefix) {
             const roleEl = document.getElementById(prefix + '-role');
             if (!roleEl) return;
             const role = roleEl.value;
 
-            const deptWrap = document.getElementById(prefix + '-department-wrap');
-            const deptSelect = document.getElementById(prefix + '-department-id');
-            const secWrap = document.getElementById(prefix + '-security-type-wrap');
-            const secSelect = document.getElementById(prefix + '-security-type');
+            const deptWrap     = document.getElementById(prefix + '-department-wrap');
+            const deptSelect   = document.getElementById(prefix + '-department-id');
+            const secWrap      = document.getElementById(prefix + '-security-type-wrap');
+            const secSelect    = document.getElementById(prefix + '-security-type');
             const buildingWrap = document.getElementById(prefix + '-building-wrap');
             const buildingSelect = document.getElementById(prefix + '-building');
 
             const isDepartment = role === 'department';
-            const isSecurity = role === 'security';
+            const isSecurity   = role === 'security';
 
             if (deptWrap) deptWrap.classList.toggle('hidden', !isDepartment);
             if (deptSelect) deptSelect.required = isDepartment;
@@ -589,6 +873,7 @@ function user_role_label(string $role): string {
             if (!isSecurity && buildingSelect) buildingSelect.value = '';
         },
 
+        // ── Edit modal ────────────────────────────────────────────────────
         openEditModal(btn) {
             const raw = btn && btn.dataset ? btn.dataset.user : '';
             if (!raw) return;
@@ -624,6 +909,7 @@ function user_role_label(string $role): string {
             }
         },
 
+        // ── Delete modal ──────────────────────────────────────────────────
         openDeleteModal(btn) {
             const raw = btn && btn.dataset ? btn.dataset.user : '';
             if (!raw) return;
@@ -637,10 +923,10 @@ function user_role_label(string $role): string {
             document.getElementById('delete-user-role').textContent = (user.role || '—').replace(/_/g, ' ');
             document.getElementById('delete-user-dept').textContent = user.department ? String(user.department) : '—';
 
-            const isSelf = id > 0 && this.currentUserId === id;
-            const warn = document.getElementById('delete-self-warning');
+            const isSelf    = id > 0 && this.currentUserId === id;
+            const warn      = document.getElementById('delete-self-warning');
             const submitBtn = document.getElementById('delete-user-submit');
-            if (warn) warn.classList.toggle('hidden', !isSelf);
+            if (warn)      warn.classList.toggle('hidden', !isSelf);
             if (submitBtn) submitBtn.disabled = !!isSelf;
 
             this.toggleModal('delete-user-modal');

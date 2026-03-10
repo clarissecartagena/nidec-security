@@ -70,7 +70,8 @@ $sql = "SELECT
         r.status,
         r.fix_due_date,
         r.submitted_at,
-        u_submit.name AS submitted_by_name,
+        u_submit.name          AS submitted_by_name,
+        u_submit.security_type AS submitted_by_security_type,
         d.name AS department_name,
         gasr.reviewed_at,
         gasr.notes AS ga_staff_notes,
@@ -95,14 +96,14 @@ $sql = "SELECT
      FROM reports r
      JOIN departments d ON d.id = r.responsible_department_id
     LEFT JOIN users u_submit ON u_submit.id = r.submitted_by
-     LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
-     LEFT JOIN users u_staff ON u_staff.id = gasr.reviewed_by
-     LEFT JOIN ga_president_approvals gapa ON gapa.report_id = r.id
-     LEFT JOIN users u_pres ON u_pres.id = gapa.decided_by
-     LEFT JOIN department_actions da ON da.report_id = r.id
+    LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
+    LEFT JOIN users u_staff ON u_staff.id = gasr.reviewed_by
+    LEFT JOIN ga_president_approvals gapa ON gapa.report_id = r.id
+    LEFT JOIN users u_pres ON u_pres.id = gapa.decided_by
+    LEFT JOIN department_actions da ON da.report_id = r.id
     LEFT JOIN users u_dept ON u_dept.id = da.acted_by
-     LEFT JOIN security_final_checks sfc ON sfc.report_id = r.id
-     LEFT JOIN users u_sec ON u_sec.id = sfc.checked_by
+    LEFT JOIN security_final_checks sfc ON sfc.report_id = r.id
+    LEFT JOIN users u_sec ON u_sec.id = sfc.checked_by
     WHERE r.report_no = ?";
 
 $sql .= $whereExtra . " LIMIT 1";
@@ -138,64 +139,69 @@ foreach ($attachments as $a) {
     $pathRel = safe_public_rel_path($a['file_path'] ?? null);
     $url = $pathRel ? app_url($pathRel) : null;
     $attachmentOut[] = [
-        'file_name' => $a['file_name'],
-        'file_path' => $a['file_path'],
-        'url' => $url,
-        'mime_type' => $a['mime_type'],
+        'file_name'       => $a['file_name'],
+        'file_path'       => $a['file_path'],
+        'url'             => $url,
+        'mime_type'       => $a['mime_type'],
         'file_size_bytes' => $a['file_size_bytes'] !== null ? (int)$a['file_size_bytes'] : null,
-        'uploaded_at' => $a['uploaded_at'],
+        'uploaded_at'     => $a['uploaded_at'],
     ];
 }
 
+// Normalise security_type: must be exactly 'internal' or 'external'
+$rawSecType = strtolower(trim((string)($report['submitted_by_security_type'] ?? '')));
+$securityType = in_array($rawSecType, ['internal', 'external'], true) ? $rawSecType : 'internal';
+
 $out = [
     // Keep legacy "id" as the human-friendly Report No (used widely by ReportModal)
-    'id' => $report['report_no'],
+    'id'                 => $report['report_no'],
     // Numeric DB PK - used for print_report.php?report_id=XX
-    'reportId' => (int)$report['id'],
-    'reportNo' => $report['report_no'],
-    'subject' => $report['subject'],
-    'category' => $report['category'],
-    'location' => $report['location'],
-    'severity' => $report['severity'],
-    'building' => $report['building'],
-    'departmentId' => (int)$report['responsible_department_id'],
-    'department' => $report['department_name'],
-    'details' => $report['details'],
-    'actionsTaken' => $report['actions_taken'],
-    'remarks' => $report['remarks'],
-    'evidenceImageUrl' => $evidenceUrl,
-    'attachments' => $attachmentOut,
-    'status' => $report['status'],
-    'submittedAt' => $report['submitted_at'],
-    'submittedBy' => $report['submitted_by_name'],
+    'reportId'           => (int)$report['id'],
+    'reportNo'           => $report['report_no'],
+    'subject'            => $report['subject'],
+    'category'           => $report['category'],
+    'location'           => $report['location'],
+    'severity'           => $report['severity'],
+    'building'           => $report['building'],
+    'departmentId'       => (int)$report['responsible_department_id'],
+    'department'         => $report['department_name'],
+    'details'            => $report['details'],
+    'actionsTaken'       => $report['actions_taken'],
+    'remarks'            => $report['remarks'],
+    'evidenceImageUrl'   => $evidenceUrl,
+    'attachments'        => $attachmentOut,
+    'status'             => $report['status'],
+    'submittedAt'        => $report['submitted_at'],
+    'submittedBy'        => $report['submitted_by_name'],
+    'securityType'       => $securityType,   // ← THE MISSING FIELD
 
-    'securityRemarks' => $report['security_remarks'],
-    'resolvedAt' => $report['resolved_at'],
-    'returnedAt' => $report['returned_at'],
+    'securityRemarks'    => $report['security_remarks'],
+    'resolvedAt'         => $report['resolved_at'],
+    'returnedAt'         => $report['returned_at'],
 
-    'reviewedBy' => $report['ga_staff_reviewer'],
-    'reviewedAt' => $report['reviewed_at'],
-    'gaStaffNotes' => $report['ga_staff_notes'],
+    'reviewedBy'         => $report['ga_staff_reviewer'],
+    'reviewedAt'         => $report['reviewed_at'],
+    'gaStaffNotes'       => $report['ga_staff_notes'],
 
-    'approvedBy' => $report['ga_president_name'],
-    'approvedAt' => $report['decided_at'],
-    'gaPresidentDecision' => $report['ga_president_decision'],
-    'gaPresidentNotes' => $report['ga_president_notes'],
+    'approvedBy'         => $report['ga_president_name'],
+    'approvedAt'         => $report['decided_at'],
+    'gaPresidentDecision'=> $report['ga_president_decision'],
+    'gaPresidentNotes'   => $report['ga_president_notes'],
 
-    'timeline_days' => $report['timeline_days'],
-    'timeline_start' => $report['timeline_start'],
-    'timeline_due' => $report['timeline_due'] ?? $report['fix_due_date'],
-    'dept_action' => $report['action_type'],
-    'dept_remarks' => $report['dept_remarks'],
-    'deptActedAt' => $report['dept_acted_at'],
-    'deptActedBy' => $report['dept_acted_by'],
+    'timeline_days'      => $report['timeline_days'],
+    'timeline_start'     => $report['timeline_start'],
+    'timeline_due'       => $report['timeline_due'] ?? $report['fix_due_date'],
+    'dept_action'        => $report['action_type'],
+    'dept_remarks'       => $report['dept_remarks'],
+    'deptActedAt'        => $report['dept_acted_at'],
+    'deptActedBy'        => $report['dept_acted_by'],
     'deptEvidenceImageUrl' => $deptEvidenceUrl,
 
-    'finalCheckedBy' => $report['final_checked_by'],
-    'finalCheckedAt' => $report['final_checked_at'],
-    'finalDecision' => $report['final_decision'],
-    'finalRemarks' => $report['final_remarks'],
-    'closedAt' => $report['closed_at'],
+    'finalCheckedBy'     => $report['final_checked_by'],
+    'finalCheckedAt'     => $report['final_checked_at'],
+    'finalDecision'      => $report['final_decision'],
+    'finalRemarks'       => $report['final_remarks'],
+    'closedAt'           => $report['closed_at'],
 ];
 
 echo json_encode($out);

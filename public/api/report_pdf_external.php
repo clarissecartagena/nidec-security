@@ -138,42 +138,33 @@ $logo = build_pdf_image_objects_from_rgba($logoPath);
 
 $pages = []; $content = ''; $y = $topY; $evidenceImageObjects = [];
 
-$start_new_page = function () use (&$pages, &$content, &$y, $topY, $pageW, $marginL, $logo): void {
-        if ($content !== '') { $pages[] = $content; }
-        $content = ''; $y = $topY;
-        
-        if ($logo) {
-            // 1. MAKE LOGO BIGGER
-            $targetH = 85.0; // Increased from 80
-            $scale = $targetH / (float)$logo['h'];
-            $drawW = (float)$logo['w'] * $scale; 
-            $drawH = $targetH;
-            
-            // 2. POSITION LOGO (Fixed on the left)
-            $startX = $marginL; 
-            $yImg = $y - $drawH + 15; // Adjusted Y for better alignment
-            $content .= "q\n" . sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n", $drawW, $drawH, $startX, $yImg) . "/Im1 Do\nQ\n";
-        }
+$start_new_page = function () use (&$pages, &$content, &$y, $topY, $pageW): void {
+    if ($content !== '') { $pages[] = $content; }
+    $content = ''; 
+    $y = $topY;
+    $centerX = $pageW / 2;
 
-        // Header text should not depend on GD/logo availability
-        $centerX = $pageW / 2;
-        $content .= "0 0 0 rg\n";
-        $textY = $y - 16;
+    $content .= "0 0 0 rg\n"; // Ensure text is black
 
-        // Line 1: Bold Company Name (Approx width 260pt)
-        $line1 = 'SISCO INVESTIGATION & SECURITY CORPORATION';
-        $content .= pdf_text($centerX - 130, $textY, 'F2', 14, $line1);
+    // Line 1: SISCO INVESTIGATION & SECURITY CORPORATION
+    // Original Text from external template. Estimated width at 14pt Bold is ~280pt.
+    $line1 = 'SISCO INVESTIGATION & SECURITY CORPORATION';
+    $content .= pdf_text($centerX - 170, $y, 'F2', 14, $line1);
 
-        // Line 2: Detachment (Approx width 220pt)
-        $line2 = 'NIDEC Philippines Corporation - Security Detachment';
-        $content .= pdf_text($centerX - 110, $textY - 14, 'F1', 12, $line2);
+    // Line 2: NIDEC Philippines Corporation - Security Detachment
+    // Original Text. Estimated width at 12pt is ~240pt.
+    $y -= 16;
+    $line2 = 'NIDEC Philippines Corporation - Security Detachment';
+    $content .= pdf_text($centerX - 146, $y, 'F1', 12, $line2);
 
-        // Line 3: Address (Approx width 300pt)
-        $line3 = '119 Technology Avenue Special Economic Zone Laguna Techno Park, Binan Laguna';
-        $content .= pdf_text($centerX - 150, $textY - 28, 'F1', 10, $line3);
+    // Line 3: Address
+    // Original Text. Estimated width at 10pt is ~340pt.
+    $y -= 16;
+    $line3 = '119 Technology Avenue Special Economic Zone Laguna Techno Park, Binan Laguna';
+    $content .= pdf_text($centerX - 186, $y, 'F1', 10, $line3);
 
-        $y -= 110; // Drop body start lower to avoid header overlap
-    };
+    $y -= 60; // Space before the Date/To/Subject section begins
+};
 
 $start_new_page();
 

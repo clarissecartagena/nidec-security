@@ -134,40 +134,41 @@ $dateStr = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['su
 
 // --- PDF CONSTANTS ---
 $pageW = 612; $pageH = 1008; $marginL = 50; $marginR = 50; $topY = $pageH - 50; $bottomY = 55;
-$logoPath = dirname(__DIR__) . '/assets/images/internal-logo.png';
-$logo = build_pdf_image_objects_from_rgba($logoPath);
 
 $pages = []; $content = ''; $y = $topY; $evidenceImageObjects = [];
 
-$start_new_page = function () use (&$pages, &$content, &$y, $topY, $pageW, $logo): void {
+$start_new_page = function () use (&$pages, &$content, &$y, $topY, $pageW): void {
     if ($content !== '') { $pages[] = $content; }
-    $content = ''; $y = $topY;
-    $tx = ($pageW / 2) - (310 / 2);
-    if ($logo) {
-        $targetH = 75.0; $scale = $targetH / (float)$logo['h'];
-        $drawW = (float)$logo['w'] * $scale; $drawH = $targetH;
-        $startX = ($pageW / 2) - (($drawW + 310) / 2) - 20;
-        $content .= "q\n" . sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n", $drawW, $drawH, $startX, $y - $drawH + 15) . "/Im1 Do\nQ\n";
-        $tx = $startX + $drawW + 5;
-    }
+    $content = ''; 
+    $y = $topY;
+    $centerX = $pageW / 2;
 
-    // Header text should not depend on GD/logo availability
-    $headerLines = [
-        ['f'=>'F2', 's'=>14, 't'=>'ARAGON SECURITY AND INVESTIGATION'],
-        ['f'=>'F2', 's'=>11, 't'=>'AGENCY, CORPORATION'],
-        ['f'=>'F1', 's'=>10, 't'=>'NIDEC PHILIPPINES CORPORATION DETACHMENT'],
-        ['f'=>'F1', 's'=>9,  't'=>'136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna']
-    ];
-    foreach ($headerLines as $idx => $hl) {
-        $ly = $y - ($idx * 16);
-        if ($idx === 0) {
-            $content .= "0.7 0 0 rg\n" . pdf_text($tx + 18, $ly, 'F2', 14, 'ARAGON ') . "0 0.3 0.6 rg\n" . pdf_text($tx + 86, $ly, 'F2', 14, 'SECURITY AND INVESTIGATION');
-        } else {
-            $content .= ($idx === 1 ? "0 0.3 0.6 rg\n" : "0 0 0 rg\n") . pdf_text($tx + 40, $ly, $hl['f'], $hl['s'], $hl['t']);
-        }
-    }
+    // --- CENTERED HEADER TEXT ---
+    // Line 1: Split color line
+    // Estimated width for "ARAGON SECURITY AND INVESTIGATION" at 14pt is ~240 units
+    $line1X = $centerX - 140; 
+    $content .= "0.7 0 0 rg\n" . pdf_text($line1X, $y, 'F2', 14, 'ARAGON ') . 
+                "0 0.3 0.6 rg\n" . pdf_text($line1X + 68, $y, 'F2', 14, 'SECURITY AND INVESTIGATION');
+    
+    // Line 2: "AGENCY, CORPORATION"
+    // Estimated width at 11pt is ~110 units
+    $y -= 16;
+    $line2X = $centerX - 75;
+    $content .= "0 0.3 0.6 rg\n" . pdf_text($line2X, $y, 'F2', 13, 'AGENCY, CORPORATION');
 
-    $y -= 80;
+    // Line 3: "NIDEC PHILIPPINES CORPORATION DETACHMENT"
+    // Estimated width at 10pt is ~210 units
+    $y -= 16;
+    $line3X = $centerX - 115;
+    $content .= "0 0 0 rg\n" . pdf_text($line3X, $y, 'F1', 10, 'NIDEC PHILIPPINES CORPORATION DETACHMENT');
+
+    // Line 4: Address
+    // Estimated width at 9pt is ~290 units
+    $y -= 16;
+    $line4X = $centerX - 145;
+    $content .= "0 0 0 rg\n" . pdf_text($line4X, $y, 'F1', 9, '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna');
+
+    $y -= 30; // Space before the Memorandum section
 };
 
 $start_new_page();

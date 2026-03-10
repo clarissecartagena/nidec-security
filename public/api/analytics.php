@@ -33,6 +33,10 @@ function output_analytics_xlsx(array $f, array $rows): void {
     $nCols   = count($cols); // 11
     $lastCol = chr(ord('A') + $nCols - 1); // 'K'
 
+    // Columns that should be CENTER aligned (0-indexed):
+    // DATE=0, REPORT NO=1, CATEGORY=3, LOCATION=4, SEVERITY=5, BUILDING=6, DEPARTMENT=7, STATUS=8, DATE RESOLVED=10
+    $centeredCols = [0, 1, 3, 4, 5, 6, 7, 8, 10];
+
     // ── XML escaper ────────────────────────────────────────────────────────────
     $xe = function (string $s): string {
         $s = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', (string)$s);
@@ -60,12 +64,17 @@ function output_analytics_xlsx(array $f, array $rows): void {
     };
 
     // ── Styles XML ─────────────────────────────────────────────────────────────
-    // Fills:  0=none  1=gray125(req)  2=yellow(title)  3=green(header)  4=lightgray(alt row)
-    //         5=lightblue(meta value)  6=navy(meta section header)
-    // Fonts:  0=normal  1=title(18pt bold navy)  2=header(10pt bold white)
-    //         3=data(10pt)  4=meta-label(10pt bold navy)  5=meta-hdr(10pt bold white)
-    // xf[0]=normal  xf[1]=title  xf[2]=col-header  xf[3]=data  xf[4]=alt-data
-    //    xf[5]=meta-label  xf[6]=meta-value  xf[7]=meta-section-hdr
+    // Style index map:
+    //   xf[0]  = normal baseline
+    //   xf[1]  = title row     (yellow bg, bold 18pt navy, centered, border)
+    //   xf[2]  = col header    (green bg, bold 10pt white, centered, border)
+    //   xf[3]  = data left     (white bg, 10pt, left, wrap, border)
+    //   xf[4]  = data left alt (lightgray bg, 10pt, left, wrap, border)
+    //   xf[5]  = meta-label    (lightblue bg, bold 10pt navy, left, border)
+    //   xf[6]  = meta-value    (lightblue bg, 10pt, left, border)
+    //   xf[7]  = meta-hdr      (navy bg, bold 10pt white, centered, border)
+    //   xf[8]  = data center   (white bg, 10pt, center, border)
+    //   xf[9]  = data center alt (lightgray bg, 10pt, center, border)
     $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
         . '<fonts count="6">'
@@ -87,10 +96,16 @@ function output_analytics_xlsx(array $f, array $rows): void {
         . '</fills>'
         . '<borders count="2">'
         . '<border><left/><right/><top/><bottom/><diagonal/></border>'
-        . '<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>'
+        . '<border>'
+        .   '<left style="thin"><color auto="1"/></left>'
+        .   '<right style="thin"><color auto="1"/></right>'
+        .   '<top style="thin"><color auto="1"/></top>'
+        .   '<bottom style="thin"><color auto="1"/></bottom>'
+        .   '<diagonal/>'
+        . '</border>'
         . '</borders>'
         . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="8">'
+        . '<cellXfs count="10">'
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
         . '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="0"/></xf>'
         . '<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
@@ -99,6 +114,8 @@ function output_analytics_xlsx(array $f, array $rows): void {
         . '<xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
         . '<xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
         . '<xf numFmtId="0" fontId="5" fillId="6" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFill="1" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>'
         . '</cellXfs>'
         . '</styleSheet>';
 
@@ -106,22 +123,15 @@ function output_analytics_xlsx(array $f, array $rows): void {
     $xml    = '';
     $rowNum = 1;
 
-    // Row 1: blank spacer
-    $xml .= "<row r=\"{$rowNum}\"></row>\n";
-    $rowNum++;
-
-    // Row 2: SECURITY REPORT title  (style 1 = yellow, center, bold 18pt)
+    // Row 1: SECURITY REPORT title (yellow bg, bold 18pt, centered)
     $titleRow = $rowNum;
     $xml .= "<row r=\"{$rowNum}\" ht=\"36\" customHeight=\"1\">";
     $xml .= $cell("A{$rowNum}", 'SECURITY REPORT', 1);
     $xml .= "</row>\n";
     $rowNum++;
 
-    // Row 3: blank spacer between title and header
-    $xml .= "<row r=\"{$rowNum}\"></row>\n";
-    $rowNum++;
-
-    // Row 4: Column headers  (style 2 = green bg, white bold, centered)
+    // Row 2: Column headers — immediately after title, NO blank gap row
+    $headerRow = $rowNum;
     $xml .= "<row r=\"{$rowNum}\" ht=\"20\" customHeight=\"1\">";
     foreach ($cols as $ci => $cn) {
         $xml .= $cell($colLetter($ci) . $rowNum, $cn, 2);
@@ -129,16 +139,16 @@ function output_analytics_xlsx(array $f, array $rows): void {
     $xml .= "</row>\n";
     $rowNum++;
 
-    // Data rows  (style 3 = normal, style 4 = alt-gray)
+    // Data rows
     foreach ($rows as $ri => $r) {
-        $s    = ($ri % 2 === 1) ? 4 : 3;
+        $isAlt = ($ri % 2 === 1);
         $vals = [
             !empty($r['submitted_at'])  ? date('M d, Y', strtotime($r['submitted_at'])) : '',
             (string)($r['report_no']       ?? ''),
             (string)($r['subject']         ?? ''),
             (string)($r['category']        ?? ''),
             (string)($r['location']        ?? ''),
-            strtoupper((string)($r['severity']      ?? '')),
+            strtoupper((string)($r['severity'] ?? '')),
             (string)($r['building']        ?? ''),
             (string)($r['department_name'] ?? ''),
             $statusLabel((string)($r['status'] ?? '')),
@@ -147,6 +157,11 @@ function output_analytics_xlsx(array $f, array $rows): void {
         ];
         $xml .= "<row r=\"{$rowNum}\" ht=\"30\" customHeight=\"1\">";
         foreach ($vals as $ci => $v) {
+            if (in_array($ci, $centeredCols, true)) {
+                $s = $isAlt ? 9 : 8;
+            } else {
+                $s = $isAlt ? 4 : 3;
+            }
             $xml .= $cell($colLetter($ci) . $rowNum, $v, $s);
         }
         $xml .= "</row>\n";
@@ -157,7 +172,7 @@ function output_analytics_xlsx(array $f, array $rows): void {
     $xml .= "<row r=\"{$rowNum}\"></row>\n";
     $rowNum++;
 
-    // Metadata section header  (style 7 = navy bg, white bold, centered)
+    // Metadata section header (navy bg, white bold, centered)
     $metaHdrRow = $rowNum;
     $xml .= "<row r=\"{$rowNum}\" ht=\"18\" customHeight=\"1\">";
     $xml .= $cell("A{$rowNum}", 'REPORT SUMMARY', 7);
@@ -165,7 +180,7 @@ function output_analytics_xlsx(array $f, array $rows): void {
     $xml .= "</row>\n";
     $rowNum++;
 
-    // Metadata rows  (style 5 = label, style 6 = value)
+    // Metadata rows
     $deptLabel = (int)($f['department_id'] ?? 0) > 0 ? 'ID: ' . (int)$f['department_id'] : 'All Departments';
     $bldgLabel = !empty($f['building']) ? $f['building'] : 'All Buildings';
     $metaRows  = [
@@ -183,26 +198,49 @@ function output_analytics_xlsx(array $f, array $rows): void {
         $rowNum++;
     }
 
-    // ── Column widths ──────────────────────────────────────────────────────────
-    $colWidths = [12, 14, 36, 16, 28, 11, 11, 24, 26, 50, 14];
+    // ── Column widths: bestFit="1" for auto-fit ────────────────────────────────
+    $colWidths = [14, 14, 40, 16, 30, 12, 11, 22, 26, 55, 14];
     $cwXml = '<cols>';
     foreach ($colWidths as $ci => $w) {
         $n = $ci + 1;
-        $cwXml .= "<col min=\"{$n}\" max=\"{$n}\" width=\"{$w}\" customWidth=\"1\" bestFit=\"0\"/>";
+        $cwXml .= "<col min=\"{$n}\" max=\"{$n}\" width=\"{$w}\" customWidth=\"1\" bestFit=\"1\"/>";
     }
     $cwXml .= '</cols>';
 
     // ── Merge cells ────────────────────────────────────────────────────────────
     $mergesXml = '<mergeCells count="2">'
-        . "<mergeCell ref=\"A{$titleRow}:{$lastCol}{$titleRow}\"/>"  // title row: A to K
-        . "<mergeCell ref=\"A{$metaHdrRow}:B{$metaHdrRow}\"/>"       // summary banner
+        . "<mergeCell ref=\"A{$titleRow}:{$lastCol}{$titleRow}\"/>"
+        . "<mergeCell ref=\"A{$metaHdrRow}:B{$metaHdrRow}\"/>"
         . '</mergeCells>';
 
     // ── Assemble sheet XML ─────────────────────────────────────────────────────
+    // IMPORTANT: OOXML strict element order inside <worksheet>:
+    //   1. <sheetPr>          (optional)
+    //   2. <dimension>        (optional)
+    //   3. <sheetViews>       ← freeze panes go here
+    //   4. <sheetFormatPr>    (optional)
+    //   5. <cols>
+    //   6. <sheetData>
+    //   7. <mergeCells>
+    //   (other optional elements after)
     $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        // 1. sheetViews with freeze pane — MUST come before <cols> and <sheetData>
+        . '<sheetViews>'
+        .   '<sheetView tabSelected="1" workbookViewId="0">'
+        //     ySplit="2" freezes the first 2 rows (title + header)
+        //     topLeftCell="A3" = first scrollable cell
+        //     activePane="bottomLeft" = the scrollable pane is active
+        .     '<pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/>'
+        .     '<selection pane="bottomLeft" activeCell="A3" sqref="A3"/>'
+        .   '</sheetView>'
+        . '</sheetViews>'
+        // 2. cols (column widths)
         . $cwXml
+        // 3. sheetData (all rows)
         . '<sheetData>' . $xml . '</sheetData>'
+        // 4. mergeCells (MUST come after sheetData)
         . $mergesXml
         . '</worksheet>';
 
@@ -234,7 +272,8 @@ function output_analytics_xlsx(array $f, array $rows): void {
 
     $zip->addFromString('xl/workbook.xml',
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
         . '<sheets><sheet name="Security Report" sheetId="1" r:id="rId1"/></sheets>'
         . '</workbook>');
 

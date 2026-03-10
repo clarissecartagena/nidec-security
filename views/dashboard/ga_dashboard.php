@@ -249,9 +249,9 @@
         <!-- Metric List Modal -->
         <div id="metric-modal-overlay" class="modal-overlay" aria-hidden="true">
             <div id="metric-modal" class="report-modal" role="dialog" aria-modal="true" aria-labelledby="metric-modal-title">
-                <div class="metric-modal-header">
+                <div class="report-modal-header">
                     <h3 id="metric-modal-title">Metric</h3>
-                    <button type="button" class="metric-modal-close" onclick="MetricModal.close()" aria-label="Close">
+                    <button type="button" class="modal-close-btn" onclick="MetricModal.close()" aria-label="Close">
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -259,7 +259,7 @@
                     <div class="text-sm text-muted-foreground">Loading…</div>
                 </div>
                 <div class="report-modal-footer">
-                    <button type="button" class="metric-modal-footer-action" onclick="MetricModal.close()">Close</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="MetricModal.close()">Close</button>
                 </div>
             </div>
         </div>
