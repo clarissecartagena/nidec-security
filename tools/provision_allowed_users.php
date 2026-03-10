@@ -48,6 +48,21 @@ $allowed = require SCRIPT_ROOT . '/config/allowed_users.php';
 $model           = new UsersModel();
 $employeeService = new EmployeeService();
 
+// ── API connectivity banner ────────────────────────────────────────────────
+
+$apiUrl    = $employeeService->getApiBaseUrl();
+$usingMock = $employeeService->isUsingMock();
+
+echo "API endpoint : {$apiUrl}\n";
+if ($usingMock) {
+    echo "Status       : WARNING — company API unreachable; using LOCAL MOCK API.\n";
+    echo "               Ensure the mock server is running at " . MOCK_API_BASE_URL . "\n";
+    echo "               or connect to the company network/VPN and re-run.\n";
+} else {
+    echo "Status       : Connected to company API.\n";
+}
+echo "\n";
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function already_exists(string $employeeNo): bool
@@ -58,6 +73,15 @@ function already_exists(string $employeeNo): bool
         [$employeeNo]
     );
     return (bool)$row;
+}
+
+/**
+ * Strip terminal control characters from a string before printing it.
+ * Prevents terminal escape sequences in API response data from corrupting output.
+ */
+function safe_print(string $value): string
+{
+    return preg_replace('/[\x00-\x1f\x7f]/u', '', $value) ?? $value;
 }
 
 /**
@@ -109,6 +133,7 @@ foreach ($allowed as $entry) {
     if (!$empResult['success'] || empty($empResult['employee'])) {
         $error = $empResult['error'] ?? 'Employee API unreachable or employee not found.';
         echo "  [FAIL]  {$employeeNo}: {$error}\n";
+        echo "          (endpoint: {$apiUrl})\n";
         $failed++;
         continue;
     }
@@ -117,7 +142,15 @@ foreach ($allowed as $entry) {
     // ── Auto-detect role + entity from Employee API ────────────────────────
     $detected = EmployeeService::detectRoleFromEmployee($emp);
     if ($detected === null) {
-        echo "  [SKIP]  {$employeeNo}: employee does not match any allowed role (not GA Staff, Security, or Department/PIC) — skipped.\n";
+        echo "  [SKIP]  {$employeeNo}: employee does not match any allowed role — skipped.\n";
+        echo "          API returned: employee_id='" . safe_print($emp['employee_id']) . "'"
+           . " section='" . safe_print($emp['section']) . "'"
+           . " job_level='" . safe_print($emp['job_level']) . "'\n";
+        echo "          Expected one of:\n";
+        echo "            employee_id === '" . GA_PRESIDENT_EMPLOYEE_NO . "' (ga_president)\n";
+        echo "            section     === '" . GA_STAFF_SECTION          . "' (ga_staff)\n";
+        echo "            job_level   === '" . SECURITY_JOB_LEVEL_NCFL   . "' or '" . SECURITY_JOB_LEVEL_NPFL . "' (security)\n";
+        echo "            job_level   === '" . DEPARTMENT_JOB_LEVEL       . "' (department)\n";
         $skipped++;
         continue;
     }
@@ -168,7 +201,14 @@ echo "Done. Provisioned: {$provisioned}  Skipped: {$skipped}  Failed: {$failed}\
 
 if ($failed > 0) {
     echo "\nNote: Failed entries are usually caused by the Employee API being unreachable.\n";
-    echo "Ensure the Employee API (or mock) is running and re-run this script.\n";
+    echo "Endpoint tried : {$apiUrl}\n";
+    if ($usingMock) {
+        echo "The company API (" . COMPANY_API_BASE_URL . ") was unreachable and the\n";
+        echo "local mock server (" . MOCK_API_BASE_URL . ") was used instead.\n";
+        echo "If the mock is also unreachable, start the mock server and re-run.\n";
+    } else {
+        echo "Check that you are connected to the company network/VPN and re-run.\n";
+    }
     exit(1);
 }
 
