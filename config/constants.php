@@ -17,6 +17,7 @@ $navItems = [
     ['label' => 'User Management', 'path' => 'users.php', 'icon' => 'users', 'roles' => ['ga_president']],
     ['label' => 'Statistics', 'path' => 'statistics.php', 'icon' => 'bar-chart', 'roles' => ['ga_president']],
     ['label' => 'Notifications', 'path' => 'notifications.php', 'icon' => 'history', 'roles' => ['ga_president']],
+    ['label' => 'My Profile', 'path' => 'profile.php', 'icon' => 'person', 'roles' => ['ga_president']],
 
     // GA Staff module (required pages only)
     ['label' => 'Dashboard', 'path' => 'dashboard.php', 'icon' => 'layout-dashboard', 'roles' => ['ga_staff']],
@@ -26,6 +27,7 @@ $navItems = [
     ['label' => 'User Management', 'path' => 'ga_staff/user_management.php', 'icon' => 'users', 'roles' => ['ga_staff']],
     ['label' => 'Statistics', 'path' => 'ga_staff/statistics.php', 'icon' => 'bar-chart', 'roles' => ['ga_staff']],
     ['label' => 'Notifications', 'path' => 'notifications.php', 'icon' => 'history', 'roles' => ['ga_staff']],
+    ['label' => 'My Profile', 'path' => 'profile.php', 'icon' => 'person', 'roles' => ['ga_staff']],
 
     // Security module (required pages only)
     ['label' => 'Dashboard', 'path' => 'security-dashboard.php', 'icon' => 'layout-dashboard', 'roles' => ['security']],
@@ -34,6 +36,7 @@ $navItems = [
     ['label' => 'All Reports', 'path' => 'security-reports.php', 'icon' => 'list', 'roles' => ['security']],
     ['label' => 'Statistics', 'path' => 'security-statistics.php', 'icon' => 'bar-chart', 'roles' => ['security']],
     ['label' => 'Notifications', 'path' => 'notifications.php', 'icon' => 'history', 'roles' => ['security']],
+    ['label' => 'My Profile', 'path' => 'profile.php', 'icon' => 'person', 'roles' => ['security']],
 
     // Department module (required pages only)
     ['label' => 'Dashboard', 'path' => 'department-dashboard.php', 'icon' => 'layout-dashboard', 'roles' => ['department']],
@@ -41,6 +44,7 @@ $navItems = [
     ['label' => 'Report History', 'path' => 'department-history.php', 'icon' => 'history', 'roles' => ['department']],
     ['label' => 'Statistics', 'path' => 'department-statistics.php', 'icon' => 'bar-chart', 'roles' => ['department']],
     ['label' => 'Notifications', 'path' => 'notifications.php', 'icon' => 'history', 'roles' => ['department']],
+    ['label' => 'My Profile', 'path' => 'profile.php', 'icon' => 'person', 'roles' => ['department']],
 ];
 
 // Icon SVGs
@@ -57,6 +61,7 @@ $icons = [
     'bar-chart' => '<i class="bi bi-bar-chart" aria-hidden="true"></i>',
     'download' => '<i class="bi bi-download" aria-hidden="true"></i>',
     'users' => '<i class="bi bi-people" aria-hidden="true"></i>',
+    'person' => '<i class="bi bi-person-circle" aria-hidden="true"></i>',
 ];
 
 // Report Categories

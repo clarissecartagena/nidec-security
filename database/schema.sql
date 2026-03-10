@@ -36,6 +36,7 @@ CREATE TABLE users (
   employee_no     VARCHAR(50)  NOT NULL,          -- company employee number (PRIMARY KEY)
   name            VARCHAR(120) NOT NULL,           -- fullname from API
   email           VARCHAR(150) NULL,               -- work email from API
+  signature_path  VARCHAR(255) NULL,               -- uploaded signature image path (one-time)
   position        VARCHAR(100) NULL,               -- job title from API
   department      VARCHAR(120) NULL,               -- department name from API
   -- ──────────────────────────────────────────────────────────────────

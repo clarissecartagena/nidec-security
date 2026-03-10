@@ -56,8 +56,13 @@ $sql = "SELECT
         r.id, r.report_no, r.subject, r.category, r.location, r.severity, r.building,
         r.status, r.submitted_at, r.details, r.actions_taken, r.remarks, r.security_remarks,
         d.name AS department_name, u_submit.name AS submitted_by_name,
+        u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
-        gapa.decided_at, u_pres.name AS ga_president_name
+        u_staff.signature_path AS ga_staff_signature,
+        gapa.decided_at, u_pres.name AS ga_president_name,
+        u_pres.signature_path AS ga_president_signature,
+        da.acted_at AS dept_acted_at, u_dept.name AS dept_acted_by,
+        u_dept.signature_path AS dept_signature
      FROM reports r
      JOIN departments d ON d.id = r.responsible_department_id
 LEFT JOIN users u_submit ON u_submit.employee_no = r.submitted_by
@@ -65,6 +70,8 @@ LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
 LEFT JOIN users u_staff ON u_staff.employee_no = gasr.reviewed_by
 LEFT JOIN ga_president_approvals gapa ON gapa.report_id = r.id
 LEFT JOIN users u_pres ON u_pres.employee_no = gapa.decided_by
+LEFT JOIN department_actions da ON da.report_id = r.id
+LEFT JOIN users u_dept ON u_dept.employee_no = da.acted_by
     WHERE r.report_no = ? " . $whereExtra . " LIMIT 1";
 
 $report = db_fetch_one($sql, '', $params);
@@ -259,13 +266,97 @@ if (!empty($evidence)) {
     }
 }
 
-// --- SIGNATURE ---
-if ($y < 150) $start_new_page();
-$content .= pdf_text($marginL, $y, 'F1', 11, 'Prepared by:'); $y -= 45;
-$content .= pdf_text($marginL, $y, 'F2', 11, strtoupper($report['submitted_by_name'])); $y -= 14;
-$content .= pdf_text($marginL, $y, 'F1', 10, "Detachment Commander"); $y -= 12;
-$content .= pdf_text($marginL, $y, 'F1', 10, "SISCO-NCFL External Scty."); $y -= 12;
-$content .= pdf_text($marginL, $y, 'F1', 10, $dateStr);
+// --- SIGNATORY BLOCKS ---
+if ($y < 200) $start_new_page();
+
+$signatories = [];
+
+// 1. Security — always shown
+$signatories[] = [
+    'label' => 'Prepared by:',
+    'name'  => strtoupper((string)($report['submitted_by_name'] ?? 'OFFICER NAME')),
+    'line1' => 'Detachment Commander',
+    'line2' => 'SISCO-NCFL External Scty.',
+    'sig'   => $report['submitted_by_signature'] ?? null,
+    'key'   => 'security',
+];
+
+// 2. GA Staff — shown once they forwarded
+if (!empty($report['reviewed_at'])) {
+    $signatories[] = [
+        'label' => 'Reviewed by:',
+        'name'  => strtoupper((string)($report['ga_staff_reviewer'] ?? '')),
+        'line1' => 'GA Staff',
+        'line2' => null,
+        'sig'   => $report['ga_staff_signature'] ?? null,
+        'key'   => 'gastaff',
+    ];
+}
+
+// 3. GA President/Manager — shown once they decided
+if (!empty($report['decided_at'])) {
+    $signatories[] = [
+        'label' => 'Approved by:',
+        'name'  => strtoupper((string)($report['ga_president_name'] ?? '')),
+        'line1' => 'GA Manager',
+        'line2' => null,
+        'sig'   => $report['ga_president_signature'] ?? null,
+        'key'   => 'gapresident',
+    ];
+}
+
+// 4. Department — shown once they acted
+if (!empty($report['dept_acted_at'])) {
+    $signatories[] = [
+        'label' => 'Acknowledged by:',
+        'name'  => strtoupper((string)($report['dept_acted_by'] ?? '')),
+        'line1' => strtoupper((string)($report['department_name'] ?? 'Department')),
+        'line2' => null,
+        'sig'   => $report['dept_signature'] ?? null,
+        'key'   => 'dept',
+    ];
+}
+
+// Load signature images
+$sigImgMaxH = 45.0;
+foreach ($signatories as &$sig) {
+    if (empty($sig['sig'])) continue;
+    $sigImgPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$sig['sig']);
+    if (!is_file($sigImgPath)) continue;
+    $sigImgData = build_pdf_image_objects_from_rgba($sigImgPath);
+    if (!$sigImgData) continue;
+    $sigRef = 'ImSig' . $sig['key'];
+    $evidenceImageObjects[$sigRef] = $sigImgData;
+    $sig['img_ref'] = $sigRef;
+    $sig['img_w']   = $sigImgData['w'];
+    $sig['img_h']   = $sigImgData['h'];
+}
+unset($sig);
+
+// Draw columns
+$numSigs  = count($signatories);
+$colWidth = (float)($pageW - $marginL - $marginR) / max($numSigs, 1);
+$sigAreaH = $sigImgMaxH + 8.0;
+
+foreach ($signatories as $ci => $sig) {
+    $cx = (float)$marginL + $ci * $colWidth;
+    $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
+    if (!empty($sig['img_ref'])) {
+        $iw    = (float)$sig['img_w'];
+        $ih    = (float)$sig['img_h'];
+        $scale = min($sigImgMaxH / $ih, ($colWidth - 4.0) / $iw);
+        $dw    = $iw * $scale;
+        $dh    = $ih * $scale;
+        $imgY  = $y - 14.0 - $dh;
+        $ref   = $sig['img_ref'];
+        $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$ref Do\nQ\n", $dw, $dh, $cx, $imgY);
+    }
+    $nameBaseY = $y - 14.0 - $sigAreaH;
+    $content .= pdf_line($cx, $nameBaseY - 2.0, $cx + $colWidth - 6.0, $nameBaseY - 2.0, 0.5);
+    $content .= pdf_text($cx, $nameBaseY - 15.0, 'F2', 9, $sig['name']);
+    if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameBaseY - 28.0, 'F1', 8, $sig['line1']);
+    if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameBaseY - 39.0, 'F1', 8, $sig['line2']);
+}
 
 if ($content !== '') $pages[] = $content;
 
