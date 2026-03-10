@@ -57,7 +57,7 @@ class DashboardModel
         $sql = "SELECT r.report_no, r.subject, r.severity, r.submitted_at, d.name AS department_name, u.name AS submitted_by_name
                 FROM reports r
                 JOIN departments d ON d.id = r.responsible_department_id
-                LEFT JOIN users u ON u.id = r.submitted_by
+                LEFT JOIN users u ON u.employee_no = r.submitted_by
                 WHERE r.status = 'submitted_to_ga_staff' AND r.current_reviewer = 'ga_staff'";
         $params = [];
         if ($buildingFilter) {

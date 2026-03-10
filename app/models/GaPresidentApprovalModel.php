@@ -22,7 +22,7 @@ class GaPresidentApprovalModel
                 FROM reports r
                 JOIN departments d ON d.id = r.responsible_department_id
                 LEFT JOIN ga_staff_reviews gasr ON gasr.report_id = r.id
-                LEFT JOIN users u ON u.id = gasr.reviewed_by
+                LEFT JOIN users u ON u.employee_no = gasr.reviewed_by
                 WHERE r.status = 'submitted_to_ga_president'
                   AND r.current_reviewer = 'ga_president'";
         $params = [];
