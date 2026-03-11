@@ -272,23 +272,6 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     // norm_security_type returns 'internal' or 'external' — never an empty/wrong value
     $template = norm_security_type($report['submitted_by_security_type'] ?? null);
 
-    // ── Header text lines (depend entirely on $template) ─────────────────────
-    if ($template === 'internal') {
-        $headerLines = [
-            ['font' => 'F2', 'size' => 14, 'text' => 'ARAGON SECURITY AND INVESTIGATION'],
-            ['font' => 'F2', 'size' => 13, 'text' => 'AGENCY, CORPORATION'],
-            ['font' => 'F1', 'size' => 10, 'text' => 'NIDEC PHILIPPINES CORPORATION DETACHMENT'],
-            ['font' => 'F1', 'size' =>  9, 'text' => '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna'],
-        ];
-    } else {
-        // EXTERNAL (SISCO)
-        $headerLines = [
-            ['font' => 'F2', 'size' => 14, 'text' => 'SISCO INVESTIGATION & SECURITY CORPORATION'],
-            ['font' => 'F1', 'size' => 12, 'text' => 'NIDEC Philippines Corporation - Security Detachment'],
-            ['font' => 'F1', 'size' => 10, 'text' => '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna'],
-        ];
-    }
-
     $pages   = [];
     $content = '';
     $y       = $topY;
@@ -297,7 +280,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $isFirstPage = true;
     $start_new_page = function () use (
         &$pages, &$content, &$y,
-        $topY, $marginL, $pageW, $template, $headerLines, $pageH, $showGrid, &$isFirstPage
+        $topY, $pageW, $template, $pageH, $showGrid, &$isFirstPage
     ): void {
         if ($content !== '') {
             $pages[] = $content;
@@ -322,41 +305,33 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $content .= "Q\n";
         }
 
-        // ── Centered header text (no logo) ───────────────────────────────────
-        $textAreaWidth = 320;
-        $tx = ($pageW / 2) - ($textAreaWidth / 2);
+        $centerX = $pageW / 2;
 
-        foreach ($headerLines as $idx => $hl) {
-            $lineY      = $y - ($idx * 16);
-            $fontSize   = (int)$hl['size'];
-            $fontObj    = $hl['font'];
-            $text       = (string)$hl['text'];
-            $widthFactor       = ($fontObj === 'F2') ? 0.52 : 0.46;
-            $estimatedLineWidth = strlen($text) * ($fontSize * $widthFactor);
-            $lineX             = $tx + ($textAreaWidth / 2) - ($estimatedLineWidth / 2);
-
-            if ($template === 'internal') {
-                if ($idx === 0) {
-                    $fullWidth = strlen('ARAGON SECURITY AND INVESTIGATION') * ($fontSize * 0.52);
-                    $line1X    = $tx + ($textAreaWidth / 2) - ($fullWidth / 2);
-                    $content .= "0.7 0 0 rg\n";
-                    $content .= pdf_text($line1X,      $lineY, 'F2', $fontSize, 'ARAGON ');
-                    $content .= "0 0.3 0.6 rg\n";
-                    $content .= pdf_text($line1X + 68, $lineY, 'F2', $fontSize, 'SECURITY AND INVESTIGATION');
-                } elseif ($idx === 1) {
-                    $content .= "0 0.3 0.6 rg\n";
-                    $content .= pdf_text($lineX, $lineY, 'F2', $fontSize, $text);
-                } else {
-                    $content .= "0 0 0 rg\n";
-                    $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
-                }
-            } else {
-                $content .= "0 0 0 rg\n";
-                $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
-            }
+        if ($template === 'internal') {
+            // ── ARAGON header — exact coordinates from report_pdf_internal.php ──
+            $line1X = $centerX - 140;
+            $content .= "0.7 0 0 rg\n" . pdf_text($line1X, $y, 'F2', 14, 'ARAGON ');
+            $content .= "0 0.3 0.6 rg\n" . pdf_text($line1X + 68, $y, 'F2', 14, 'SECURITY AND INVESTIGATION');
+            $y -= 16;
+            $line2X = $centerX - 75;
+            $content .= "0 0.3 0.6 rg\n" . pdf_text($line2X, $y, 'F2', 13, 'AGENCY, CORPORATION');
+            $y -= 16;
+            $line3X = $centerX - 115;
+            $content .= "0 0 0 rg\n" . pdf_text($line3X, $y, 'F1', 10, 'NIDEC PHILIPPINES CORPORATION DETACHMENT');
+            $y -= 16;
+            $line4X = $centerX - 145;
+            $content .= pdf_text($line4X, $y, 'F1', 9, '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna');
+            $y -= 30;
+        } else {
+            // ── SISCO header — exact coordinates from report_pdf_external.php ──
+            $content .= "0 0 0 rg\n";
+            $content .= pdf_text($centerX - 170, $y, 'F2', 14, 'SISCO INVESTIGATION & SECURITY CORPORATION');
+            $y -= 16;
+            $content .= pdf_text($centerX - 146, $y, 'F1', 12, 'NIDEC Philippines Corporation - Security Detachment');
+            $y -= 16;
+            $content .= pdf_text($centerX - 186, $y, 'F1', 10, '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna');
+            $y -= 60;
         }
-
-        $y -= ($template === 'internal') ? 78 : 92;
     };
 
     $start_new_page();
@@ -376,9 +351,13 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigPresHeader'] = $sd;
-                $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-                $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
-                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 90, $y - $_psh);
+                $_nameW  = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaManager, 11.0, 'F1'));
+                $_colonW = estimate_text_width(': ', 11.0, 'F1');
+                $_nameX  = (float)$marginL + 85.0 + $_colonW;
+                $_psc    = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+                $_psw    = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
+                $_sigX   = $_nameX + ($_nameW - $_psw) / 2.0;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $_sigX, $y - $_psh);
                 $_presigH = $_psh + 4.0;
             }
         }
@@ -396,9 +375,13 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigStaffHeader'] = $sd;
-                $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-                $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
-                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 90, $y - $_ssh);
+                $_nameW  = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaStaffName, 11.0, 'F1'));
+                $_colonW = estimate_text_width(': ', 11.0, 'F1');
+                $_nameX  = (float)$marginL + 85.0 + $_colonW;
+                $_ssc    = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+                $_ssw    = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
+                $_sigX   = $_nameX + ($_nameW - $_ssw) / 2.0;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $_sigX, $y - $_ssh);
                 $_stafgH = $_ssh + 4.0;
             }
         }
@@ -432,9 +415,13 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigPresHeader'] = $sd;
-                $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-                $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
-                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 80, $y - $_psh);
+                $_nameW  = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaManager, 11.0, 'F1'));
+                $_colonW = estimate_text_width(': ', 11.0, 'F1');
+                $_nameX  = (float)$marginL + 70.0 + $_colonW;
+                $_psc    = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+                $_psw    = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
+                $_sigX   = $_nameX + ($_nameW - $_psw) / 2.0;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $_sigX, $y - $_psh);
                 $_presigH = $_psh + 4.0;
             }
         }
@@ -452,9 +439,13 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigStaffHeader'] = $sd;
-                $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-                $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
-                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 80, $y - $_ssh);
+                $_nameW  = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaStaffName, 11.0, 'F1'));
+                $_colonW = estimate_text_width(': ', 11.0, 'F1');
+                $_nameX  = (float)$marginL + 70.0 + $_colonW;
+                $_ssc    = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+                $_ssw    = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
+                $_sigX   = $_nameX + ($_nameW - $_ssw) / 2.0;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $_sigX, $y - $_ssh);
                 $_stafgH = $_ssh + 4.0;
             }
         }
@@ -579,13 +570,15 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
         $rowY = $y - 14.0;
         if (!empty($sig['img_ref'])) {
-            $iw    = (float)$sig['img_w'];
-            $ih    = (float)$sig['img_h'];
-            $scale = min($sigImgMaxH / $ih, ($colWidth - 6.0) / $iw);
-            $dw    = $iw * $scale;
-            $dh    = $ih * $scale;
-            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/%s Do\nQ\n", $dw, $dh, $cx, $rowY - $dh, $sig['img_ref']);
-            $nameY = $rowY - $dh - 4.0;
+            $iw     = (float)$sig['img_w'];
+            $ih     = (float)$sig['img_h'];
+            $_nameW = max(MIN_SIG_NAME_WIDTH, estimate_text_width($sig['name'], 10.0, 'F2'));
+            $scale  = min($sigImgMaxH / $ih, $_nameW / $iw);
+            $dw     = $iw * $scale;
+            $dh     = $ih * $scale;
+            $sigX   = $cx + ($_nameW - $dw) / 2.0;
+            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/%s Do\nQ\n", $dw, $dh, $sigX, $rowY - $dh, $sig['img_ref']);
+            $nameY  = $rowY - $dh - 4.0;
         } else {
             $nameY = $rowY;
         }
