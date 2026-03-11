@@ -520,7 +520,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     // ── Signatory blocks ──────────────────────────────────────────────────────
     $y -= 30;
-    // Reserve enough space for: label + signature image (max 40) + name + two role lines
+    // Reserve enough space for: label + gap(14) + signature image(max 40) + name + two description lines
     if ($y < 250) $start_new_page();
 
     // Security and Department only — GA staff/president have their sigs in the header
