@@ -78,13 +78,22 @@ $reportCategories = [
 
 // Departments
 $departments = [
-    'Manufacturing',
-    'IT',
-    'Facilities',
-    'Human Resources',
     'Quality Assurance',
-    'Engineering',
+    'Engineering Component',
+    'Production Component',
+    'Engineering Module',
+    'L Office-Maint',
     'Administration',
+    'Others',
+    'NCFL',
+    'Purchasing',
+    'L Office-QC',
+    'PSD Office-HR',
+    'Accounting and Finance',
+    'Technical Support',
+    'Production',
+    'QA Commin',
+    'Process Control',
 ];
 
 // Severity Levels

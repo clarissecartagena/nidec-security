@@ -54,14 +54,25 @@ ALTER TABLE departments            AUTO_INCREMENT = 1;
 SET @PWD := '$2y$10$.iMox6CY98Js2VAK2aUdx.SaLjZQN5h18NNJzBfER4hdk7Z4.RdFu';
 
 -- ==================================================================
--- DEPARTMENTS  (5 rows)
+-- DEPARTMENTS  (16 rows)
 -- ==================================================================
 INSERT INTO departments (id, name, is_active, created_at) VALUES
-  (1, 'Facilities & Maintenance', 1, '2026-01-15 08:00:00'),
-  (2, 'Information Technology',   1, '2026-01-15 08:00:00'),
-  (3, 'Human Resources',          1, '2026-01-15 08:00:00'),
-  (4, 'Operations',               1, '2026-01-15 08:00:00'),
-  (5, 'Quality Assurance',        1, '2026-01-15 08:00:00');
+  ( 1, 'Quality Assurance',       1, '2026-01-15 08:00:00'),
+  ( 2, 'Engineering Component',   1, '2026-01-15 08:00:00'),
+  ( 3, 'Production Component',    1, '2026-01-15 08:00:00'),
+  ( 4, 'Engineering Module',      1, '2026-01-15 08:00:00'),
+  ( 5, 'L Office-Maint',          1, '2026-01-15 08:00:00'),
+  ( 6, 'Administration',          1, '2026-01-15 08:00:00'),
+  ( 7, 'Others',                  1, '2026-01-15 08:00:00'),
+  ( 8, 'NCFL',                    1, '2026-01-15 08:00:00'),
+  ( 9, 'Purchasing',              1, '2026-01-15 08:00:00'),
+  (10, 'L Office-QC',             1, '2026-01-15 08:00:00'),
+  (11, 'PSD Office-HR',           1, '2026-01-15 08:00:00'),
+  (12, 'Accounting and Finance',  1, '2026-01-15 08:00:00'),
+  (13, 'Technical Support',       1, '2026-01-15 08:00:00'),
+  (14, 'Production',              1, '2026-01-15 08:00:00'),
+  (15, 'QA Commin',               1, '2026-01-15 08:00:00'),
+  (16, 'Process Control',         1, '2026-01-15 08:00:00');
 
 -- ==================================================================
 -- USERS  (12 rows)
