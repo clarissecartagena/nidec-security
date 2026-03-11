@@ -52,6 +52,9 @@ if ($role === 'security') {
     $params[] = $userDepartmentId;
 }
 
+// Detect whether migration 007 (job_level column) has been applied to this database.
+$hasJobLevel = (bool) db_fetch_one("SHOW COLUMNS FROM users LIKE 'job_level'");
+
 $sql = "SELECT
         r.id, r.report_no, r.subject, r.category, r.location, r.severity, r.building,
         r.status, r.submitted_at, r.details, r.actions_taken, r.remarks, r.security_remarks,
@@ -59,11 +62,11 @@ $sql = "SELECT
         u_submit.security_type AS submitted_by_security_type,
         u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
-        u_staff.signature_path AS ga_staff_signature,
-        u_staff.job_level AS ga_staff_job_level,
+        u_staff.signature_path AS ga_staff_signature"
+    . ($hasJobLevel ? ",\n        u_staff.job_level AS ga_staff_job_level" : '') . ",
         gapa.decided_at, gapa.decision AS ga_president_decision, u_pres.name AS ga_president_name,
-        u_pres.signature_path AS ga_president_signature,
-        u_pres.job_level AS ga_president_job_level,
+        u_pres.signature_path AS ga_president_signature"
+    . ($hasJobLevel ? ",\n        u_pres.job_level AS ga_president_job_level" : '') . ",
         da.acted_at AS dept_acted_at, u_dept.name AS dept_acted_by,
         u_dept.signature_path AS dept_signature
      FROM reports r
