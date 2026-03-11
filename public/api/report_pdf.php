@@ -26,7 +26,7 @@ if ($reportNo === '') {
     exit;
 }
 
-$userBuilding      = normalize_building($user['building'] ?? null);
+$userBuilding      = normalize_building($user['entity'] ?? $user['building'] ?? null);
 $userDepartmentId  = (int)($user['department_id'] ?? 0);
 
 $whereExtra = '';
@@ -235,19 +235,14 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $gdAvailable = gd_available();
 
     // ── Dynamic names ────────────────────────────────────────────────────────
-    $gaManager   = !empty($report['ga_president_name'])  ? strtoupper($report['ga_president_name'])  : 'MS. KAREN F. ENRIQUEZ';
-    $gaStaffName = !empty($report['ga_staff_reviewer'])  ? strtoupper($report['ga_staff_reviewer'])  : 'MS. LIZA ACOSTA';
+    $gaManager   = !empty($report['ga_president_name'])  ? strtoupper($report['ga_president_name'])  : 'NOT YET APPROVED';
+    $gaStaffName = !empty($report['ga_staff_reviewer'])  ? strtoupper($report['ga_staff_reviewer'])  : 'NOT YET REVIEWED';
     $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . ' RE: ' . strtoupper((string)($report['subject'] ?? ''));
     $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
 
     // FIX #3 (THE CORE FIX): determine template from the report's submitter security_type
     // norm_security_type returns 'internal' or 'external' — never an empty/wrong value
     $template = norm_security_type($report['submitted_by_security_type'] ?? null);
-
-    // ── Logo ─────────────────────────────────────────────────────────────────
-    $logoFile = ($template === 'internal') ? 'assets/images/internal-logo.png' : 'assets/images/external-logo.png';
-    $logoPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $logoFile);
-    $logo     = ($gdAvailable && is_file($logoPath)) ? build_pdf_image_objects_from_rgba($logoPath) : null;
 
     // ── Header text lines (depend entirely on $template) ─────────────────────
     if ($template === 'internal') {
@@ -271,15 +266,21 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $y       = $topY;
 
     // ── Page renderer (closure) ───────────────────────────────────────────────
+    $isFirstPage = true;
     $start_new_page = function () use (
         &$pages, &$content, &$y,
-        $topY, $marginL, $pageW, $template, $headerLines, $logo, $pageH, $showGrid
+        $topY, $marginL, $pageW, $template, $headerLines, $pageH, $showGrid, &$isFirstPage
     ): void {
         if ($content !== '') {
             $pages[] = $content;
         }
         $content = '';
         $y       = $topY;
+
+        if (!$isFirstPage) {
+            return; // No header on subsequent pages
+        }
+        $isFirstPage = false;
 
         // Optional debug grid
         if ($showGrid) {
@@ -293,55 +294,35 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $content .= "Q\n";
         }
 
-        // ── Centered header ───────────────────────────────────────────────────
-        $horizontalGap   = 5;
-        $textAreaWidth   = 320;
+        // ── Centered header text (no logo) ───────────────────────────────────
+        $textAreaWidth = 320;
         $tx = ($pageW / 2) - ($textAreaWidth / 2);
 
-        if ($logo) {
-            $targetH  = 75.0;
-            $scale    = $targetH / max(1.0, (float)$logo['h']);
-            $drawW    = (float)$logo['w'] * $scale;
-            $drawH    = (float)$logo['h'] * $scale;
-            $approxTW = 300;
-            $startX   = ($pageW / 2) - (($drawW + $horizontalGap + $approxTW) / 2) - 20;
-            $yImg     = $y - $drawH + 15;
-            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/Im1 Do\nQ\n",
-                $drawW, $drawH, $startX, $yImg);
-            $tx = $startX + $drawW + $horizontalGap;
-        }
-
-        // FIX #3 (continued): render header lines with proper per-template styling
         foreach ($headerLines as $idx => $hl) {
-            $lineY    = $y - ($idx * 16);
-            $fontSize = (int)$hl['size'];
-            $fontObj  = $hl['font'];
-            $text     = (string)$hl['text'];
-
+            $lineY      = $y - ($idx * 16);
+            $fontSize   = (int)$hl['size'];
+            $fontObj    = $hl['font'];
+            $text       = (string)$hl['text'];
             $widthFactor       = ($fontObj === 'F2') ? 0.52 : 0.46;
             $estimatedLineWidth = strlen($text) * ($fontSize * $widthFactor);
             $lineX             = $tx + ($textAreaWidth / 2) - ($estimatedLineWidth / 2);
 
             if ($template === 'internal') {
                 if ($idx === 0) {
-                    // "ARAGON" in red, rest in blue
                     $fullWidth = strlen('ARAGON SECURITY AND INVESTIGATION') * ($fontSize * 0.52);
                     $line1X    = $tx + ($textAreaWidth / 2) - ($fullWidth / 2);
                     $content .= "0.7 0 0 rg\n";
-                    $content .= pdf_text($line1X,       $lineY, 'F2', $fontSize, 'ARAGON ');
+                    $content .= pdf_text($line1X,      $lineY, 'F2', $fontSize, 'ARAGON ');
                     $content .= "0 0.3 0.6 rg\n";
-                    $content .= pdf_text($line1X + 68,  $lineY, 'F2', $fontSize, 'SECURITY AND INVESTIGATION');
+                    $content .= pdf_text($line1X + 68, $lineY, 'F2', $fontSize, 'SECURITY AND INVESTIGATION');
                 } elseif ($idx === 1) {
-                    // "AGENCY, CORPORATION" in blue
                     $content .= "0 0.3 0.6 rg\n";
                     $content .= pdf_text($lineX, $lineY, 'F2', $fontSize, $text);
                 } else {
-                    // Address lines in black
                     $content .= "0 0 0 rg\n";
                     $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
                 }
             } else {
-                // EXTERNAL: all header lines in plain black
                 $content .= "0 0 0 rg\n";
                 $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
             }
@@ -352,38 +333,101 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     $start_new_page();
 
+    // Image objects shared between memo header sigs, evidence, and bottom signatories
+    $evidenceImageObjects = [];
+
     // ── Memo fields (internal vs external layout) ─────────────────────────────
     if ($template === 'internal') {
         $content .= "BT /F2 12 Tf $marginL $y Td (MEMORANDUM) ET\n"; $y -= 25;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'FOR');
-        $content .= pdf_text($marginL + 85, $y, 'F1', 11, ': ' . $gaManager);
-        $content .= pdf_text($marginL + 95, $y - 14, 'F1', 10, 'Senior GA Manager'); $y -= 45;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'THRU');
-        $content .= pdf_text($marginL + 85, $y, 'F1', 11, ': ' . $gaStaffName);
-        $content .= pdf_text($marginL + 95, $y - 14, 'F1', 10, 'General Affair Supervisor'); $y -= 45;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'SUBJECT');
+
+        // FOR (GA President) — signature above name
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'FOR');
+        $_presigH = 0.0;
+        if (!empty($report['ga_president_signature'])) {
+            $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_president_signature']);
+            $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
+            if ($sd) {
+                $evidenceImageObjects['ImSigPresHeader'] = $sd;
+                $_psc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 90, $y - $_psh);
+                $_presigH = $_psh + 4.0;
+            }
+        }
+        $content .= pdf_text($marginL + 85, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
+        $content .= pdf_text($marginL + 95, $y - $_presigH - 14, 'F1', 10, 'Senior GA Manager');
+        $y -= (45.0 + $_presigH);
+
+        // THRU (GA Staff) — signature above name
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
+        $_stafgH = 0.0;
+        if (!empty($report['ga_staff_signature'])) {
+            $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_staff_signature']);
+            $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
+            if ($sd) {
+                $evidenceImageObjects['ImSigStaffHeader'] = $sd;
+                $_ssc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 90, $y - $_ssh);
+                $_stafgH = $_ssh + 4.0;
+            }
+        }
+        $content .= pdf_text($marginL + 85, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
+        $content .= pdf_text($marginL + 95, $y - $_stafgH - 14, 'F1', 10, 'General Affair Supervisor');
+        $y -= (45.0 + $_stafgH);
+
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'SUBJECT');
         $content .= pdf_text($marginL + 85, $y, 'F2', 11, ': ');
         foreach (wrap_pdf_lines($subjectLine, 50) as $i => $line) {
             if ($i > 0) $y -= 14;
             $content .= pdf_text($marginL + 95, $y, 'F2', 11, $line);
         }
         $y -= 35;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'DATE');
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'DATE');
         $content .= pdf_text($marginL + 85, $y, 'F1', 11, ': ' . strtoupper($dateStr)); $y -= 25;
         $content .= pdf_line($marginL, $y, $pageW - $marginR, $y, 0.5);
         $y -= 30;
     } else {
         // EXTERNAL (SISCO) memo fields
         $content .= pdf_text($marginL, $y, 'F1', 11, 'Date                : ' . $dateStr); $y -= 20;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'To');
-        $content .= pdf_text($marginL + 75, $y, 'F1', 11, ': ' . $gaManager); $y -= 14;
-        $content .= pdf_text($marginL + 85, $y, 'F1', 10, 'GA - Admin / Senior Manager'); $y -= 25;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'Thru');
-        $content .= pdf_text($marginL + 75, $y, 'F1', 11, ': ' . $gaStaffName);
-        $content .= pdf_text($marginL + 180, $y, 'F1', 11, 'Ms. Cherry Buenconsejo'); $y -= 14;
-        $content .= pdf_text($marginL + 85, $y, 'F1', 10, 'GA - Supervisor');
-        $content .= pdf_text($marginL + 190, $y, 'F1', 10, 'GA - Senior Staff'); $y -= 40;
-        $content .= pdf_text($marginL,      $y, 'F2', 11, 'Subject');
+
+        // TO (GA President) — signature above name
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'To');
+        $_presigH = 0.0;
+        if (!empty($report['ga_president_signature'])) {
+            $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_president_signature']);
+            $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
+            if ($sd) {
+                $evidenceImageObjects['ImSigPresHeader'] = $sd;
+                $_psc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 80, $y - $_psh);
+                $_presigH = $_psh + 4.0;
+            }
+        }
+        $content .= pdf_text($marginL + 75, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
+        $content .= pdf_text($marginL + 85, $y - $_presigH - 14, 'F1', 10, 'GA - Admin / Senior Manager');
+        $y -= (28.0 + $_presigH);
+
+        // Thru (GA Staff) — signature above name
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'Thru');
+        $_stafgH = 0.0;
+        if (!empty($report['ga_staff_signature'])) {
+            $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_staff_signature']);
+            $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
+            if ($sd) {
+                $evidenceImageObjects['ImSigStaffHeader'] = $sd;
+                $_ssc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
+                $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 80, $y - $_ssh);
+                $_stafgH = $_ssh + 4.0;
+            }
+        }
+        $content .= pdf_text($marginL + 75, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
+        $content .= pdf_text($marginL + 85, $y - $_stafgH - 14, 'F1', 10, 'GA - Supervisor');
+        $y -= (40.0 + $_stafgH);
+
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'Subject');
         $subjectLines = wrap_pdf_lines(': ' . $subjectLine, 50);
         foreach ($subjectLines as $i => $sLine) {
             $indent = ($i === 0) ? 70 : 77;
@@ -414,7 +458,6 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     }
 
     // ── Evidence / Attachments ────────────────────────────────────────────────
-    $evidenceImageObjects = [];
     if (!empty($evidence)) {
         if ($y < 200) $start_new_page();
         $content .= pdf_text($marginL, $y, 'F2', 11, 'Evidence / Attachments:'); $y -= 30;
@@ -446,11 +489,10 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $y -= 30;
     if ($y < 200) $start_new_page();
 
-    // Build the list of signatories to render.
-    // A signatory appears only once they have "passed" the report to the next stage.
+    // Security and Department only — GA staff/president have their sigs in the header
     $signatories = [];
 
-    // 1. Security — always shown (they submitted / passed to GA Staff)
+    // 1. Security — always shown
     $signatories[] = [
         'label' => 'Prepared by:',
         'name'  => strtoupper((string)($report['submitted_by_name'] ?? 'OFFICER NAME')),
@@ -460,31 +502,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         'key'   => 'security',
     ];
 
-    // 2. GA Staff — shown once they forwarded the report to GA Manager
-    if (!empty($report['reviewed_at'])) {
-        $signatories[] = [
-            'label' => 'Reviewed by:',
-            'name'  => strtoupper((string)($report['ga_staff_reviewer'] ?? '')),
-            'line1' => 'GA Staff',
-            'line2' => null,
-            'sig'   => $report['ga_staff_signature'] ?? null,
-            'key'   => 'gastaff',
-        ];
-    }
-
-    // 3. GA President/Manager — shown once they approved/decided
-    if (!empty($report['decided_at'])) {
-        $signatories[] = [
-            'label' => 'Approved by:',
-            'name'  => strtoupper((string)($report['ga_president_name'] ?? '')),
-            'line1' => 'GA Manager',
-            'line2' => null,
-            'sig'   => $report['ga_president_signature'] ?? null,
-            'key'   => 'gapresident',
-        ];
-    }
-
-    // 4. Department/PIC — shown once they acted on the report
+    // 2. Department/PIC — shown once they acted on the report
     if (!empty($report['dept_acted_at'])) {
         $signatories[] = [
             'label' => 'Acknowledged by:',
@@ -496,8 +514,8 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         ];
     }
 
-    // Load signature images and register them as XObjects alongside evidence images
-    $sigImgMaxH = 45.0;
+    // Load signature images
+    $sigImgMaxH = 40.0;
     foreach ($signatories as &$sig) {
         if (empty($sig['sig'])) continue;
         $sigImgPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$sig['sig']);
@@ -512,48 +530,29 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     }
     unset($sig);
 
-    // Draw signatory columns across the page width
+    // Draw columns — signature image directly above printed name, no separator line
     $numSigs  = count($signatories);
     $colWidth = (float)($pageW - $marginL - $marginR) / max($numSigs, 1);
-    $sigAreaH = $sigImgMaxH + 8.0; // vertical space reserved for signature image
-    // Total block height: label + sig area + underline gap + name + 2 title lines
-    $blockH   = 14.0 + $sigAreaH + 16.0 + 13.0 + 13.0;
 
     foreach ($signatories as $ci => $sig) {
-        $cx = (float)$marginL + $ci * $colWidth;
-
-        // Label ("Prepared by:", etc.)
+        $cx   = (float)$marginL + $ci * $colWidth;
         $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
-
-        // Signature image drawn above the name line
+        $rowY = $y - 14.0;
         if (!empty($sig['img_ref'])) {
             $iw    = (float)$sig['img_w'];
             $ih    = (float)$sig['img_h'];
-            $scale = min($sigImgMaxH / $ih, ($colWidth - 4.0) / $iw);
+            $scale = min($sigImgMaxH / $ih, ($colWidth - 6.0) / $iw);
             $dw    = $iw * $scale;
             $dh    = $ih * $scale;
-            $imgY  = $y - 14.0 - $dh;
-            $ref   = $sig['img_ref'];
-            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$ref Do\nQ\n", $dw, $dh, $cx, $imgY);
+            $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/%s Do\nQ\n", $dw, $dh, $cx, $rowY - $dh, $sig['img_ref']);
+            $nameY = $rowY - $dh - 4.0;
+        } else {
+            $nameY = $rowY;
         }
-
-        // Name and titles (below the signature area)
-        $nameBaseY = $y - 14.0 - $sigAreaH;
-        // Underline above name
-        $content .= pdf_line($cx, $nameBaseY - 2.0, $cx + $colWidth - 6.0, $nameBaseY - 2.0, 0.5);
-        // Name
-        $content .= pdf_text($cx, $nameBaseY - 15.0, 'F2', 9, $sig['name']);
-        // Title line 1
-        if (!empty($sig['line1'])) {
-            $content .= pdf_text($cx, $nameBaseY - 28.0, 'F1', 8, $sig['line1']);
-        }
-        // Title line 2
-        if (!empty($sig['line2'])) {
-            $content .= pdf_text($cx, $nameBaseY - 39.0, 'F1', 8, $sig['line2']);
-        }
+        $content .= pdf_text($cx, $nameY, 'F2', 9, $sig['name']);
+        if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 12.0, 'F1', 8, $sig['line1']);
+        if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 24.0, 'F1', 8, $sig['line2']);
     }
-
-    $y -= $blockH;
 
     // ── Assemble PDF objects ──────────────────────────────────────────────────
     if ($content !== '') $pages[] = $content;
@@ -564,13 +563,6 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $objects[] = "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica      /Encoding /WinAnsiEncoding >>\nendobj\n";
     $objects[] = "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n";
 
-    $imgObjNum = null;
-    if ($logo) {
-        $objects[] = "5 0 obj\n" . $logo['maskObj'] . "\nendobj\n";
-        $img       = str_replace('%SMASK%', '5', $logo['imgObj']);
-        $objects[] = "6 0 obj\n" . $img . "\nendobj\n";
-        $imgObjNum = 6;
-    }
 
     $evidMap    = [];
     $nextObjIdx = count($objects) + 1;
@@ -593,7 +585,6 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         $contentObjNum = $nextObj++;
         $pageObjNum    = $nextObj++;
         $xRefs = '';
-        if ($imgObjNum) $xRefs .= "/Im1 $imgObjNum 0 R ";
         foreach ($evidMap as $ref => $idx) $xRefs .= "/$ref $idx 0 R ";
         $objects[] = $contentObjNum . " 0 obj\n<< /Length " . strlen($pageContent) . " >>\nstream\n" . $pageContent . "endstream\nendobj\n";
         $res       = "<< /Font << /F1 3 0 R /F2 4 0 R >> /XObject << $xRefs >> >>";
