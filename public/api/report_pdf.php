@@ -344,7 +344,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     // ── Memo fields (internal vs external layout) ─────────────────────────────
     if ($template === 'internal') {
-        $content .= "BT /F2 12 Tf $marginL $y Td (MEMORANDUM) ET\n"; $y -= 25;
+        $content .= "0 0 0 rg\n" . pdf_text($marginL, $y, 'F2', 12, 'MEMORANDUM'); $y -= 25;
 
         // FOR (GA President) — signature above name
         $content .= pdf_text($marginL, $y, 'F2', 11, 'FOR');
@@ -570,7 +570,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     foreach ($signatories as $ci => $sig) {
         $cx   = (float)$marginL + $ci * $colWidth;
-        $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
+        $content .= pdf_text($cx, $y, 'F1', 10, $sig['label']);
         $rowY = $y - 14.0;
         if (!empty($sig['img_ref'])) {
             $iw     = (float)$sig['img_w'];
@@ -585,9 +585,9 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         } else {
             $nameY = $rowY;
         }
-        $content .= pdf_text($cx, $nameY, 'F2', 9, $sig['name']);
-        if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 12.0, 'F1', 8, $sig['line1']);
-        if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 24.0, 'F1', 8, $sig['line2']);
+        $content .= pdf_text($cx, $nameY, 'F2', 10, $sig['name']);
+        if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 14.0, 'F1', 10, $sig['line1']);
+        if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 28.0, 'F1', 10, $sig['line2']);
     }
 
     // ── Assemble PDF objects ──────────────────────────────────────────────────
