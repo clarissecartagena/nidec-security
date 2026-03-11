@@ -52,17 +52,20 @@ if ($role === 'security') {
     $params[] = $userDepartmentId;
 }
 
+// Detect whether migration 007 (job_level column) has been applied to this database.
+$hasJobLevel = (bool) db_fetch_one("SHOW COLUMNS FROM users LIKE 'job_level'");
+
 $sql = "SELECT 
         r.id, r.report_no, r.subject, r.category, r.location, r.severity, r.building,
         r.status, r.submitted_at, r.details, r.actions_taken, r.remarks, r.security_remarks,
         d.name AS department_name, u_submit.name AS submitted_by_name,
         u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
-        u_staff.signature_path AS ga_staff_signature,
-        u_staff.job_level AS ga_staff_job_level,
+        u_staff.signature_path AS ga_staff_signature"
+    . ($hasJobLevel ? ",\n        u_staff.job_level AS ga_staff_job_level" : '') . ",
         gapa.decided_at, u_pres.name AS ga_president_name,
-        u_pres.signature_path AS ga_president_signature,
-        u_pres.job_level AS ga_president_job_level,
+        u_pres.signature_path AS ga_president_signature"
+    . ($hasJobLevel ? ",\n        u_pres.job_level AS ga_president_job_level" : '') . ",
         da.acted_at AS dept_acted_at, u_dept.name AS dept_acted_by,
         u_dept.signature_path AS dept_signature
      FROM reports r
@@ -151,16 +154,17 @@ $gaStaffName = !empty($report['ga_staff_reviewer']) ? strtoupper($report['ga_sta
 $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . " RE: " . strtoupper((string)($report['subject'] ?? ''));
 $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
 
-// Dynamic role labels: "GA " + job_level, only when person has approved/reviewed
+// Dynamic role labels: "GA " + job_level when available, otherwise a role-based fallback.
+// Shown when the person has actually approved/reviewed the report.
 $gaPresidentRoleLabel = '';
 if (!empty($report['ga_president_name'])) {
     $jl = trim((string)($report['ga_president_job_level'] ?? ''));
-    if ($jl !== '') $gaPresidentRoleLabel = 'GA ' . strtoupper($jl);
+    $gaPresidentRoleLabel = $jl !== '' ? 'GA ' . strtoupper($jl) : 'GA PRESIDENT';
 }
 $gaStaffRoleLabel = '';
 if (!empty($report['ga_staff_reviewer'])) {
     $jl = trim((string)($report['ga_staff_job_level'] ?? ''));
-    if ($jl !== '') $gaStaffRoleLabel = 'GA ' . strtoupper($jl);
+    $gaStaffRoleLabel = $jl !== '' ? 'GA ' . strtoupper($jl) : 'GA STAFF';
 }
 
 // --- PDF CONSTANTS ---
@@ -229,7 +233,7 @@ $content .= pdf_text($marginL, $y, 'F2', 11, 'TO');
 $_presigH = 0.0;
 if ($gaPresidentSigRef !== null) {
     $sd = $evidenceImageObjects[$gaPresidentSigRef];
-    $_psc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+    $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
     $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
     $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaPresidentSigRef Do\nQ\n", $_psw, $_psh, $marginL + 75, $y - $_psh);
     $_presigH = $_psh + 4.0;
@@ -245,7 +249,7 @@ $content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
 $_stafgH = 0.0;
 if ($gaStaffSigRef !== null) {
     $sd = $evidenceImageObjects[$gaStaffSigRef];
-    $_ssc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+    $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
     $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
     $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaStaffSigRef Do\nQ\n", $_ssw, $_ssh, $marginL + 75, $y - $_ssh);
     $_stafgH = $_ssh + 4.0;
