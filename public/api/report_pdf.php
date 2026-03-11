@@ -253,18 +253,17 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $gaManager   = !empty($report['ga_president_name'])  ? strtoupper($report['ga_president_name'])  : 'NOT YET APPROVED';
     $gaStaffName = !empty($report['ga_staff_reviewer'])  ? strtoupper($report['ga_staff_reviewer'])  : 'NOT YET REVIEWED';
 
-    // Dynamic role labels from job_level stored in the users table.
-    // Only shown when the person has actually approved/reviewed the report.
-    // Format: "GA " + job_level (e.g. "GA Supervisor", "GA Senior Manager").
+    // Dynamic role labels: "GA " + job_level when available, otherwise a role-based fallback.
+    // Shown when the person has actually approved/reviewed the report.
     $gaPresidentRoleLabel = '';
     if (!empty($report['ga_president_name'])) {
         $jl = trim((string)($report['ga_president_job_level'] ?? ''));
-        if ($jl !== '') $gaPresidentRoleLabel = 'GA ' . strtoupper($jl);
+        $gaPresidentRoleLabel = $jl !== '' ? 'GA ' . strtoupper($jl) : 'GA PRESIDENT';
     }
     $gaStaffRoleLabel = '';
     if (!empty($report['ga_staff_reviewer'])) {
         $jl = trim((string)($report['ga_staff_job_level'] ?? ''));
-        if ($jl !== '') $gaStaffRoleLabel = 'GA ' . strtoupper($jl);
+        $gaStaffRoleLabel = $jl !== '' ? 'GA ' . strtoupper($jl) : 'GA STAFF';
     }
     $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . ' RE: ' . strtoupper((string)($report['subject'] ?? ''));
     $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
@@ -377,7 +376,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigPresHeader'] = $sd;
-                $_psc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
                 $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
                 $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 90, $y - $_psh);
                 $_presigH = $_psh + 4.0;
@@ -397,7 +396,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigStaffHeader'] = $sd;
-                $_ssc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
                 $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
                 $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 90, $y - $_ssh);
                 $_stafgH = $_ssh + 4.0;
@@ -432,7 +431,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigPresHeader'] = $sd;
-                $_psc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
                 $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
                 $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigPresHeader Do\nQ\n", $_psw, $_psh, $marginL + 80, $y - $_psh);
                 $_presigH = $_psh + 4.0;
@@ -452,7 +451,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $sd = $gdAvailable ? build_pdf_image_objects_from_rgba($sp) : null;
             if ($sd) {
                 $evidenceImageObjects['ImSigStaffHeader'] = $sd;
-                $_ssc = min(35.0 / (float)$sd['h'], 120.0 / (float)$sd['w']);
+                $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
                 $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
                 $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/ImSigStaffHeader Do\nQ\n", $_ssw, $_ssh, $marginL + 80, $y - $_ssh);
                 $_stafgH = $_ssh + 4.0;
