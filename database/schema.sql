@@ -38,6 +38,7 @@ CREATE TABLE users (
   email           VARCHAR(150) NULL,               -- work email from API
   signature_path  VARCHAR(255) NULL,               -- uploaded signature image path (one-time)
   position        VARCHAR(100) NULL,               -- job title from API
+  job_level       VARCHAR(100) NULL,               -- job level/grade from API (e.g. "Supervisor")
   department      VARCHAR(120) NULL,               -- department name from API
   -- ──────────────────────────────────────────────────────────────────
 
