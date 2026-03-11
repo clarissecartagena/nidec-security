@@ -174,6 +174,9 @@ function pdf_text(float $x, float $y, string $font, int $size, string $text): st
 function pdf_line(float $x1, float $y1, float $x2, float $y2, float $width = 1.0): string {
     return sprintf("%.2f w\n%.2f %.2f m\n%.2f %.2f l\nS\n", $width, $x1, $y1, $x2, $y2);
 }
+// Approximate character-width factors for PDF Type1 fonts: Helvetica-Bold (F2)=0.52, Helvetica (F1)=0.46
+function estimate_text_width(string $text, float $fontSize, string $font): float { return (float)strlen($text) * $fontSize * ($font === 'F2' ? 0.52 : 0.46); }
+const MIN_SIG_NAME_WIDTH = 60.0; // minimum signature width in pt when name is very short
 
 /**
  * FIX #2: $gdAvailableForPdfImages is now determined INSIDE the function
