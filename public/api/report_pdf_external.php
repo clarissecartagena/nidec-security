@@ -90,6 +90,9 @@ if (!$report) {
 function pdf_escape_text(string $s): string { return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $s); }
 function pdf_text($x, $y, $font, $size, $text): string { return "BT\n/$font $size Tf\n$x $y Td\n(" . pdf_escape_text($text) . ") Tj\nET\n"; }
 function pdf_line($x1, $y1, $x2, $y2, $w = 1.0): string { return "$w w\n$x1 $y1 m\n$x2 $y2 l\nS\n"; }
+// Approximate character-width factors for PDF Type1 fonts: Helvetica-Bold (F2)=0.52, Helvetica (F1)=0.46
+function estimate_text_width(string $text, float $fontSize, string $font): float { return (float)strlen($text) * $fontSize * ($font === 'F2' ? 0.52 : 0.46); }
+const MIN_SIG_NAME_WIDTH = 60.0; // minimum signature width in pt when name is very short
 
 function wrap_pdf_lines(string $text, int $maxLen): array {
     $text = str_replace(["\r\n", "\r"], "\n", trim($text));
@@ -232,10 +235,14 @@ $y -= 35;
 $content .= pdf_text($marginL, $y, 'F2', 11, 'TO');
 $_presigH = 0.0;
 if ($gaPresidentSigRef !== null) {
-    $sd = $evidenceImageObjects[$gaPresidentSigRef];
-    $_psc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-    $_psw = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
-    $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaPresidentSigRef Do\nQ\n", $_psw, $_psh, $marginL + 75, $y - $_psh);
+    $sd       = $evidenceImageObjects[$gaPresidentSigRef];
+    $_nameW   = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaManager, 11.0, 'F1'));
+    $_colonW  = estimate_text_width(': ', 11.0, 'F1');
+    $_nameX   = (float)$marginL + 70.0 + $_colonW;
+    $_psc     = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+    $_psw     = $sd['w'] * $_psc; $_psh = $sd['h'] * $_psc;
+    $_sigX    = $_nameX + ($_nameW - $_psw) / 2.0;
+    $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaPresidentSigRef Do\nQ\n", $_psw, $_psh, $_sigX, $y - $_psh);
     $_presigH = $_psh + 4.0;
 }
 $content .= pdf_text($marginL + 70, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
@@ -248,10 +255,14 @@ $y -= (45.0 + $_presigH);
 $content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
 $_stafgH = 0.0;
 if ($gaStaffSigRef !== null) {
-    $sd = $evidenceImageObjects[$gaStaffSigRef];
-    $_ssc = min(55.0 / (float)$sd['h'], 160.0 / (float)$sd['w']);
-    $_ssw = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
-    $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaStaffSigRef Do\nQ\n", $_ssw, $_ssh, $marginL + 75, $y - $_ssh);
+    $sd       = $evidenceImageObjects[$gaStaffSigRef];
+    $_nameW   = max(MIN_SIG_NAME_WIDTH, estimate_text_width($gaStaffName, 11.0, 'F1'));
+    $_colonW  = estimate_text_width(': ', 11.0, 'F1');
+    $_nameX   = (float)$marginL + 70.0 + $_colonW;
+    $_ssc     = min(55.0 / (float)$sd['h'], $_nameW / (float)$sd['w']);
+    $_ssw     = $sd['w'] * $_ssc; $_ssh = $sd['h'] * $_ssc;
+    $_sigX    = $_nameX + ($_nameW - $_ssw) / 2.0;
+    $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/$gaStaffSigRef Do\nQ\n", $_ssw, $_ssh, $_sigX, $y - $_ssh);
     $_stafgH = $_ssh + 4.0;
 }
 $content .= pdf_text($marginL + 70, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
@@ -379,22 +390,24 @@ $colWidth = (float)($pageW - $marginL - $marginR) / max($numSigs, 1);
 
 foreach ($signatories as $ci => $sig) {
     $cx   = (float)$marginL + $ci * $colWidth;
-    $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
+    $content .= pdf_text($cx, $y, 'F1', 10, $sig['label']);
     $rowY = $y - 14.0;
     if (!empty($sig['img_ref'])) {
-        $iw    = (float)$sig['img_w'];
-        $ih    = (float)$sig['img_h'];
-        $scale = min($sigImgMaxH / $ih, ($colWidth - 6.0) / $iw);
-        $dw    = $iw * $scale;
-        $dh    = $ih * $scale;
-        $content .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/%s Do\nQ\n", $dw, $dh, $cx, $rowY - $dh, $sig['img_ref']);
-        $nameY = $rowY - $dh - 4.0;
+        $iw        = (float)$sig['img_w'];
+        $ih        = (float)$sig['img_h'];
+        $_nameW    = max(MIN_SIG_NAME_WIDTH, estimate_text_width($sig['name'], 10.0, 'F2'));
+        $scale     = min($sigImgMaxH / $ih, $_nameW / $iw);
+        $dw        = $iw * $scale;
+        $dh        = $ih * $scale;
+        $sigX      = $cx + ($_nameW - $dw) / 2.0;
+        $content  .= sprintf("q\n%.2f 0 0 %.2f %.2f %.2f cm\n/%s Do\nQ\n", $dw, $dh, $sigX, $rowY - $dh, $sig['img_ref']);
+        $nameY     = $rowY - $dh - 4.0;
     } else {
         $nameY = $rowY;
     }
-    $content .= pdf_text($cx, $nameY, 'F2', 9, $sig['name']);
-    if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 12.0, 'F1', 8, $sig['line1']);
-    if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 24.0, 'F1', 8, $sig['line2']);
+    $content .= pdf_text($cx, $nameY, 'F2', 10, $sig['name']);
+    if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 14.0, 'F1', 10, $sig['line1']);
+    if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 28.0, 'F1', 10, $sig['line2']);
 }
 
 if ($content !== '') $pages[] = $content;
