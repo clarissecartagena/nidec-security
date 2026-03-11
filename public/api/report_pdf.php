@@ -276,16 +276,16 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     if ($template === 'internal') {
         $headerLines = [
             ['font' => 'F2', 'size' => 14, 'text' => 'ARAGON SECURITY AND INVESTIGATION'],
-            ['font' => 'F2', 'size' => 11, 'text' => 'AGENCY, CORPORATION'],
+            ['font' => 'F2', 'size' => 13, 'text' => 'AGENCY, CORPORATION'],
             ['font' => 'F1', 'size' => 10, 'text' => 'NIDEC PHILIPPINES CORPORATION DETACHMENT'],
             ['font' => 'F1', 'size' =>  9, 'text' => '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna'],
         ];
     } else {
         // EXTERNAL (SISCO)
         $headerLines = [
-            ['font' => 'F2', 'size' => 12, 'text' => 'SISCO INVESTIGATION & SECURITY CORPORATION'],
-            ['font' => 'F1', 'size' => 10, 'text' => 'NIDEC Philippines Corporation - Security Detachment'],
-            ['font' => 'F1', 'size' =>  9, 'text' => '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna'],
+            ['font' => 'F2', 'size' => 14, 'text' => 'SISCO INVESTIGATION & SECURITY CORPORATION'],
+            ['font' => 'F1', 'size' => 12, 'text' => 'NIDEC Philippines Corporation - Security Detachment'],
+            ['font' => 'F1', 'size' => 10, 'text' => '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna'],
         ];
     }
 
@@ -356,7 +356,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             }
         }
 
-        $y -= 80;
+        $y -= ($template === 'internal') ? 78 : 92;
     };
 
     $start_new_page();
@@ -421,10 +421,11 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         $y -= 30;
     } else {
         // EXTERNAL (SISCO) memo fields
-        $content .= pdf_text($marginL, $y, 'F1', 11, 'Date                : ' . $dateStr); $y -= 20;
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'DATE');
+        $content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $dateStr); $y -= 35;
 
         // TO (GA President) — signature above name
-        $content .= pdf_text($marginL, $y, 'F2', 11, 'To');
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'TO');
         $_presigH = 0.0;
         if (!empty($report['ga_president_signature'])) {
             $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_president_signature']);
@@ -437,14 +438,14 @@ function output_report_template_pdf(array $report, string $filename, array $evid
                 $_presigH = $_psh + 4.0;
             }
         }
-        $content .= pdf_text($marginL + 75, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
+        $content .= pdf_text($marginL + 70, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
         if ($gaPresidentRoleLabel !== '') {
-            $content .= pdf_text($marginL + 85, $y - $_presigH - 14, 'F1', 10, $gaPresidentRoleLabel);
+            $content .= pdf_text($marginL + 80, $y - $_presigH - 14, 'F1', 10, $gaPresidentRoleLabel);
         }
         $y -= (45.0 + $_presigH);
 
-        // Thru (GA Staff) — signature above name
-        $content .= pdf_text($marginL, $y, 'F2', 11, 'Thru');
+        // THRU (GA Staff) — signature above name
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
         $_stafgH = 0.0;
         if (!empty($report['ga_staff_signature'])) {
             $sp = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$report['ga_staff_signature']);
@@ -457,13 +458,13 @@ function output_report_template_pdf(array $report, string $filename, array $evid
                 $_stafgH = $_ssh + 4.0;
             }
         }
-        $content .= pdf_text($marginL + 75, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
+        $content .= pdf_text($marginL + 70, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
         if ($gaStaffRoleLabel !== '') {
-            $content .= pdf_text($marginL + 85, $y - $_stafgH - 14, 'F1', 10, $gaStaffRoleLabel);
+            $content .= pdf_text($marginL + 80, $y - $_stafgH - 14, 'F1', 10, $gaStaffRoleLabel);
         }
         $y -= (45.0 + $_stafgH);
 
-        $content .= pdf_text($marginL, $y, 'F2', 11, 'Subject');
+        $content .= pdf_text($marginL, $y, 'F2', 11, 'SUBJECT');
         $subjectLines = wrap_pdf_lines(': ' . $subjectLine, 50);
         foreach ($subjectLines as $i => $sLine) {
             $indent = ($i === 0) ? 70 : 77;
@@ -533,8 +534,10 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $signatories[] = [
         'label' => 'Prepared by:',
         'name'  => strtoupper((string)($report['submitted_by_name'] ?? 'OFFICER NAME')),
-        'line1' => strtoupper((string)($report['building'] ?? 'NCFL')) . ' / Security Officer',
-        'line2' => ($template === 'internal') ? 'Internal Security' : 'External Security',
+        'line1' => ($template === 'internal')
+            ? strtoupper((string)($report['building'] ?? 'NCFL')) . ' / Security Officer'
+            : 'Detachment Commander',
+        'line2' => ($template === 'internal') ? 'Internal Security' : 'SISCO-NCFL External Scty.',
         'sig'   => $report['submitted_by_signature'] ?? null,
         'key'   => 'security',
     ];
