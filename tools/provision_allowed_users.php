@@ -177,6 +177,7 @@ foreach ($allowed as $entry) {
             (string)($emp['fullname']    ?? $employeeNo),
             (string)($emp['email']       ?? ''),
             (string)($emp['position']    ?? ''),
+            (string)($emp['job_level']   ?? ''),
             (string)($emp['department']  ?? ''),
             $username,
             $passwordHash,

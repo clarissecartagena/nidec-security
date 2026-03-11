@@ -139,6 +139,7 @@ class AllowedUsersService
                 (string)($emp['fullname']    ?? ''),
                 (string)($emp['email']       ?? ''),
                 (string)($emp['position']    ?? ''),
+                (string)($emp['job_level']   ?? ''),
                 (string)($emp['department']  ?? ''),
                 $resolvedUsername,
                 $passwordHash,

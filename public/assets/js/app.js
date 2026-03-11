@@ -2469,13 +2469,9 @@ const ReportModal = {
             e.preventDefault();
             if (!this.currentReportNo) return;
 
-            const scriptFile = (this.currentSecurityType === 'external') 
-                ? 'report_pdf_external.php' 
-                : 'report_pdf_internal.php';
-
-            const url = appUrl(`api/${scriptFile}?id=` + encodeURIComponent(String(this.currentReportNo)));
+            const url = appUrl('api/report_pdf.php?id=' + encodeURIComponent(String(this.currentReportNo)));
             
-            console.log('[ReportModal] Opening PDF in new tab:', scriptFile);
+            console.log('[ReportModal] Opening PDF in new tab: report_pdf.php');
             
             // Use window.open instead of triggerDownload to ensure the preview/download works
             window.open(url, '_blank'); 
