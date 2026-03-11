@@ -59,8 +59,10 @@ $sql = "SELECT
         u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
         u_staff.signature_path AS ga_staff_signature,
+        u_staff.job_level AS ga_staff_job_level,
         gapa.decided_at, u_pres.name AS ga_president_name,
         u_pres.signature_path AS ga_president_signature,
+        u_pres.job_level AS ga_president_job_level,
         da.acted_at AS dept_acted_at, u_dept.name AS dept_acted_by,
         u_dept.signature_path AS dept_signature
      FROM reports r
@@ -109,7 +111,18 @@ function build_pdf_image_objects_from_rgba($path): ?array {
     if (!is_file($path)) return null;
     $info = @getimagesize($path);
     if (!$info || empty($info['mime'])) return null;
-    $src = ($info['mime'] === 'image/png') ? @imagecreatefrompng($path) : @imagecreatefromjpeg($path);
+    $mime = $info['mime'];
+    if ($mime === 'image/png') {
+        $src = @imagecreatefrompng($path);
+    } elseif ($mime === 'image/jpeg') {
+        $src = @imagecreatefromjpeg($path);
+    } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+        $src = @imagecreatefromwebp($path);
+    } elseif ($mime === 'image/gif' && function_exists('imagecreatefromgif')) {
+        $src = @imagecreatefromgif($path);
+    } else {
+        return null;
+    }
     if (!$src) return null;
     $w = imagesx($src); $h = imagesy($src);
     $rgb = ''; $alpha = '';
@@ -137,6 +150,18 @@ $gaManager   = !empty($report['ga_president_name']) ? strtoupper($report['ga_pre
 $gaStaffName = !empty($report['ga_staff_reviewer']) ? strtoupper($report['ga_staff_reviewer'])  : 'NOT YET REVIEWED';
 $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . " RE: " . strtoupper((string)($report['subject'] ?? ''));
 $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
+
+// Dynamic role labels: "GA " + job_level, only when person has approved/reviewed
+$gaPresidentRoleLabel = '';
+if (!empty($report['ga_president_name'])) {
+    $jl = trim((string)($report['ga_president_job_level'] ?? ''));
+    if ($jl !== '') $gaPresidentRoleLabel = 'GA ' . strtoupper($jl);
+}
+$gaStaffRoleLabel = '';
+if (!empty($report['ga_staff_reviewer'])) {
+    $jl = trim((string)($report['ga_staff_job_level'] ?? ''));
+    if ($jl !== '') $gaStaffRoleLabel = 'GA ' . strtoupper($jl);
+}
 
 // --- PDF CONSTANTS ---
 $pageW = 612; $pageH = 1008; $marginL = 50; $marginR = 50; $topY = $pageH - 50; $bottomY = 55;
@@ -210,8 +235,10 @@ if ($gaPresidentSigRef !== null) {
     $_presigH = $_psh + 4.0;
 }
 $content .= pdf_text($marginL + 70, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
-$content .= pdf_text($marginL + 80, $y - $_presigH - 16, 'F1', 10, 'GA - Admin / Senior Manager');
-$y -= (40.0 + $_presigH);
+if ($gaPresidentRoleLabel !== '') {
+    $content .= pdf_text($marginL + 80, $y - $_presigH - 14, 'F1', 10, $gaPresidentRoleLabel);
+}
+$y -= (45.0 + $_presigH);
 
 // 3. THRU SECTION (signature above name)
 $content .= pdf_text($marginL, $y, 'F2', 11, 'THRU');
@@ -224,7 +251,9 @@ if ($gaStaffSigRef !== null) {
     $_stafgH = $_ssh + 4.0;
 }
 $content .= pdf_text($marginL + 70, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
-$content .= pdf_text($marginL + 80, $y - $_stafgH - 16, 'F1', 10, 'GA - Supervisor');
+if ($gaStaffRoleLabel !== '') {
+    $content .= pdf_text($marginL + 80, $y - $_stafgH - 14, 'F1', 10, $gaStaffRoleLabel);
+}
 $y -= (45.0 + $_stafgH);
 
 // --- 4. SUBJECT SECTION ---
@@ -298,7 +327,7 @@ if (!empty($evidence)) {
 }
 
 // --- SIGNATORY BLOCKS ---
-if ($y < 200) $start_new_page();
+if ($y < 250) $start_new_page();
 
 $signatories = [];
 

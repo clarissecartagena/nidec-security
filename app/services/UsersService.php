@@ -111,6 +111,7 @@ class UsersService
                     $emp['fullname'],
                     $emp['email'],
                     $emp['position'],
+                    $emp['job_level'],
                     $emp['department'],
                     $username,
                     $hash,

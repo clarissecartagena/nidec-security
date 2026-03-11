@@ -75,11 +75,13 @@ $sql = "SELECT
         gasr.notes              AS ga_staff_notes,
         u_staff.name            AS ga_staff_reviewer,
         u_staff.signature_path  AS ga_staff_signature,
+        u_staff.job_level       AS ga_staff_job_level,
         gapa.decided_at,
         gapa.decision           AS ga_president_decision,
         gapa.notes              AS ga_president_notes,
         u_pres.name             AS ga_president_name,
         u_pres.signature_path   AS ga_president_signature,
+        u_pres.job_level        AS ga_president_job_level,
         da.action_type,
         da.timeline_days,
         da.timeline_start,
@@ -187,9 +189,18 @@ function build_pdf_image_objects_from_rgba(string $path): ?array {
     $info = @getimagesize($path);
     if (!$info) return null;
 
-    $src = ($info['mime'] === 'image/png')
-        ? @imagecreatefrompng($path)
-        : @imagecreatefromjpeg($path);
+    $mime = $info['mime'] ?? '';
+    if ($mime === 'image/png') {
+        $src = @imagecreatefrompng($path);
+    } elseif ($mime === 'image/jpeg') {
+        $src = @imagecreatefromjpeg($path);
+    } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+        $src = @imagecreatefromwebp($path);
+    } elseif ($mime === 'image/gif' && function_exists('imagecreatefromgif')) {
+        $src = @imagecreatefromgif($path);
+    } else {
+        return null;
+    }
     if (!$src) return null;
 
     $w = imagesx($src);
@@ -237,6 +248,20 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     // ── Dynamic names ────────────────────────────────────────────────────────
     $gaManager   = !empty($report['ga_president_name'])  ? strtoupper($report['ga_president_name'])  : 'NOT YET APPROVED';
     $gaStaffName = !empty($report['ga_staff_reviewer'])  ? strtoupper($report['ga_staff_reviewer'])  : 'NOT YET REVIEWED';
+
+    // Dynamic role labels from job_level stored in the users table.
+    // Only shown when the person has actually approved/reviewed the report.
+    // Format: "GA " + job_level (e.g. "GA Supervisor", "GA Senior Manager").
+    $gaPresidentRoleLabel = '';
+    if (!empty($report['ga_president_name'])) {
+        $jl = trim((string)($report['ga_president_job_level'] ?? ''));
+        if ($jl !== '') $gaPresidentRoleLabel = 'GA ' . strtoupper($jl);
+    }
+    $gaStaffRoleLabel = '';
+    if (!empty($report['ga_staff_reviewer'])) {
+        $jl = trim((string)($report['ga_staff_job_level'] ?? ''));
+        if ($jl !== '') $gaStaffRoleLabel = 'GA ' . strtoupper($jl);
+    }
     $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . ' RE: ' . strtoupper((string)($report['subject'] ?? ''));
     $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
 
@@ -355,7 +380,9 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             }
         }
         $content .= pdf_text($marginL + 85, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
-        $content .= pdf_text($marginL + 95, $y - $_presigH - 14, 'F1', 10, 'Senior GA Manager');
+        if ($gaPresidentRoleLabel !== '') {
+            $content .= pdf_text($marginL + 95, $y - $_presigH - 14, 'F1', 10, $gaPresidentRoleLabel);
+        }
         $y -= (45.0 + $_presigH);
 
         // THRU (GA Staff) — signature above name
@@ -373,7 +400,9 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             }
         }
         $content .= pdf_text($marginL + 85, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
-        $content .= pdf_text($marginL + 95, $y - $_stafgH - 14, 'F1', 10, 'General Affair Supervisor');
+        if ($gaStaffRoleLabel !== '') {
+            $content .= pdf_text($marginL + 95, $y - $_stafgH - 14, 'F1', 10, $gaStaffRoleLabel);
+        }
         $y -= (45.0 + $_stafgH);
 
         $content .= pdf_text($marginL, $y, 'F2', 11, 'SUBJECT');
@@ -406,8 +435,10 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             }
         }
         $content .= pdf_text($marginL + 75, $y - $_presigH, 'F1', 11, ': ' . $gaManager);
-        $content .= pdf_text($marginL + 85, $y - $_presigH - 14, 'F1', 10, 'GA - Admin / Senior Manager');
-        $y -= (28.0 + $_presigH);
+        if ($gaPresidentRoleLabel !== '') {
+            $content .= pdf_text($marginL + 85, $y - $_presigH - 14, 'F1', 10, $gaPresidentRoleLabel);
+        }
+        $y -= (45.0 + $_presigH);
 
         // Thru (GA Staff) — signature above name
         $content .= pdf_text($marginL, $y, 'F2', 11, 'Thru');
@@ -424,8 +455,10 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             }
         }
         $content .= pdf_text($marginL + 75, $y - $_stafgH, 'F1', 11, ': ' . $gaStaffName);
-        $content .= pdf_text($marginL + 85, $y - $_stafgH - 14, 'F1', 10, 'GA - Supervisor');
-        $y -= (40.0 + $_stafgH);
+        if ($gaStaffRoleLabel !== '') {
+            $content .= pdf_text($marginL + 85, $y - $_stafgH - 14, 'F1', 10, $gaStaffRoleLabel);
+        }
+        $y -= (45.0 + $_stafgH);
 
         $content .= pdf_text($marginL, $y, 'F2', 11, 'Subject');
         $subjectLines = wrap_pdf_lines(': ' . $subjectLine, 50);
@@ -487,7 +520,8 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     // ── Signatory blocks ──────────────────────────────────────────────────────
     $y -= 30;
-    if ($y < 200) $start_new_page();
+    // Reserve enough space for: label + gap(14) + signature image(max 40) + name + two description lines
+    if ($y < 250) $start_new_page();
 
     // Security and Department only — GA staff/president have their sigs in the header
     $signatories = [];
