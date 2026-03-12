@@ -174,6 +174,9 @@ function pdf_text(float $x, float $y, string $font, int $size, string $text): st
 function pdf_line(float $x1, float $y1, float $x2, float $y2, float $width = 1.0): string {
     return sprintf("%.2f w\n%.2f %.2f m\n%.2f %.2f l\nS\n", $width, $x1, $y1, $x2, $y2);
 }
+// Approximate character-width factors for PDF Type1 fonts: Helvetica-Bold (F2)=0.52, Helvetica (F1)=0.46
+function estimate_text_width(string $text, float $fontSize, string $font): float { return (float)strlen($text) * $fontSize * ($font === 'F2' ? 0.52 : 0.46); }
+const MIN_SIG_NAME_WIDTH = 60.0; // minimum signature width in pt when name is very short
 
 /**
  * FIX #2: $gdAvailableForPdfImages is now determined INSIDE the function
@@ -305,25 +308,21 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $content .= "Q\n";
         }
 
+        // ── Header text ───────────────────────────────────────────────────────
         $centerX = $pageW / 2;
 
         if ($template === 'internal') {
-            // ── ARAGON header — exact coordinates from report_pdf_internal.php ──
             $line1X = $centerX - 140;
             $content .= "0.7 0 0 rg\n" . pdf_text($line1X, $y, 'F2', 14, 'ARAGON ');
             $content .= "0 0.3 0.6 rg\n" . pdf_text($line1X + 68, $y, 'F2', 14, 'SECURITY AND INVESTIGATION');
             $y -= 16;
-            $line2X = $centerX - 75;
-            $content .= "0 0.3 0.6 rg\n" . pdf_text($line2X, $y, 'F2', 13, 'AGENCY, CORPORATION');
+            $content .= "0 0.3 0.6 rg\n" . pdf_text($centerX - 75, $y, 'F2', 13, 'AGENCY, CORPORATION');
             $y -= 16;
-            $line3X = $centerX - 115;
-            $content .= "0 0 0 rg\n" . pdf_text($line3X, $y, 'F1', 10, 'NIDEC PHILIPPINES CORPORATION DETACHMENT');
+            $content .= "0 0 0 rg\n" . pdf_text($centerX - 115, $y, 'F1', 10, 'NIDEC PHILIPPINES CORPORATION DETACHMENT');
             $y -= 16;
-            $line4X = $centerX - 145;
-            $content .= pdf_text($line4X, $y, 'F1', 9, '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna');
+            $content .= "0 0 0 rg\n" . pdf_text($centerX - 145, $y, 'F1', 9, '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna');
             $y -= 30;
         } else {
-            // ── SISCO header — exact coordinates from report_pdf_external.php ──
             $content .= "0 0 0 rg\n";
             $content .= pdf_text($centerX - 170, $y, 'F2', 14, 'SISCO INVESTIGATION & SECURITY CORPORATION');
             $y -= 16;
@@ -341,7 +340,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     // ── Memo fields (internal vs external layout) ─────────────────────────────
     if ($template === 'internal') {
-        $content .= "BT /F2 12 Tf $marginL $y Td (MEMORANDUM) ET\n"; $y -= 25;
+        $content .= "0 0 0 rg\n" . pdf_text($marginL, $y, 'F2', 12, 'MEMORANDUM'); $y -= 25;
 
         // FOR (GA President) — signature above name
         $content .= pdf_text($marginL, $y, 'F2', 11, 'FOR');
@@ -567,7 +566,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
 
     foreach ($signatories as $ci => $sig) {
         $cx   = (float)$marginL + $ci * $colWidth;
-        $content .= pdf_text($cx, $y, 'F1', 9, $sig['label']);
+        $content .= pdf_text($cx, $y, 'F1', 10, $sig['label']);
         $rowY = $y - 14.0;
         if (!empty($sig['img_ref'])) {
             $iw     = (float)$sig['img_w'];
@@ -582,9 +581,9 @@ function output_report_template_pdf(array $report, string $filename, array $evid
         } else {
             $nameY = $rowY;
         }
-        $content .= pdf_text($cx, $nameY, 'F2', 9, $sig['name']);
-        if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 12.0, 'F1', 8, $sig['line1']);
-        if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 24.0, 'F1', 8, $sig['line2']);
+        $content .= pdf_text($cx, $nameY, 'F2', 10, $sig['name']);
+        if (!empty($sig['line1'])) $content .= pdf_text($cx, $nameY - 14.0, 'F1', 10, $sig['line1']);
+        if (!empty($sig['line2'])) $content .= pdf_text($cx, $nameY - 28.0, 'F1', 10, $sig['line2']);
     }
 
     // ── Assemble PDF objects ──────────────────────────────────────────────────
