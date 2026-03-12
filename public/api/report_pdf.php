@@ -275,6 +275,23 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     // norm_security_type returns 'internal' or 'external' — never an empty/wrong value
     $template = norm_security_type($report['submitted_by_security_type'] ?? null);
 
+    // ── Header text lines (depend entirely on $template) ─────────────────────
+    if ($template === 'internal') {
+        $headerLines = [
+            ['font' => 'F2', 'size' => 14, 'text' => 'ARAGON SECURITY AND INVESTIGATION'],
+            ['font' => 'F2', 'size' => 13, 'text' => 'AGENCY, CORPORATION'],
+            ['font' => 'F1', 'size' => 10, 'text' => 'NIDEC PHILIPPINES CORPORATION DETACHMENT'],
+            ['font' => 'F1', 'size' =>  9, 'text' => '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna'],
+        ];
+    } else {
+        // EXTERNAL (SISCO)
+        $headerLines = [
+            ['font' => 'F2', 'size' => 14, 'text' => 'SISCO INVESTIGATION & SECURITY CORPORATION'],
+            ['font' => 'F1', 'size' => 12, 'text' => 'NIDEC Philippines Corporation - Security Detachment'],
+            ['font' => 'F1', 'size' => 10, 'text' => '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna'],
+        ];
+    }
+
     $pages   = [];
     $content = '';
     $y       = $topY;
@@ -283,7 +300,7 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $isFirstPage = true;
     $start_new_page = function () use (
         &$pages, &$content, &$y,
-        $topY, $pageW, $template, $pageH, $showGrid, &$isFirstPage
+        $topY, $pageW, $template, $headerLines, $pageH, $showGrid, &$isFirstPage
     ): void {
         if ($content !== '') {
             $pages[] = $content;
@@ -308,33 +325,41 @@ function output_report_template_pdf(array $report, string $filename, array $evid
             $content .= "Q\n";
         }
 
-        $centerX = $pageW / 2;
+        // ── Centered header text ──────────────────────────────────────────────
+        $textAreaWidth = 320;
+        $tx = ($pageW / 2) - ($textAreaWidth / 2);
 
-        if ($template === 'internal') {
-            // ── ARAGON header — exact coordinates from report_pdf_internal.php ──
-            $line1X = $centerX - 140;
-            $content .= "0.7 0 0 rg\n" . pdf_text($line1X, $y, 'F2', 14, 'ARAGON ');
-            $content .= "0 0.3 0.6 rg\n" . pdf_text($line1X + 68, $y, 'F2', 14, 'SECURITY AND INVESTIGATION');
-            $y -= 16;
-            $line2X = $centerX - 75;
-            $content .= "0 0.3 0.6 rg\n" . pdf_text($line2X, $y, 'F2', 13, 'AGENCY, CORPORATION');
-            $y -= 16;
-            $line3X = $centerX - 115;
-            $content .= "0 0 0 rg\n" . pdf_text($line3X, $y, 'F1', 10, 'NIDEC PHILIPPINES CORPORATION DETACHMENT');
-            $y -= 16;
-            $line4X = $centerX - 145;
-            $content .= pdf_text($line4X, $y, 'F1', 9, '136 North Science Avenue Extension, Laguna Technopark, Binan, Laguna');
-            $y -= 30;
-        } else {
-            // ── SISCO header — exact coordinates from report_pdf_external.php ──
-            $content .= "0 0 0 rg\n";
-            $content .= pdf_text($centerX - 170, $y, 'F2', 14, 'SISCO INVESTIGATION & SECURITY CORPORATION');
-            $y -= 16;
-            $content .= pdf_text($centerX - 146, $y, 'F1', 12, 'NIDEC Philippines Corporation - Security Detachment');
-            $y -= 16;
-            $content .= pdf_text($centerX - 186, $y, 'F1', 10, '119 Technology Avenue Special Economic Zone Laguna Technopark, Binan Laguna');
-            $y -= 60;
+        foreach ($headerLines as $idx => $hl) {
+            $lineY      = $y - ($idx * 16);
+            $fontSize   = (int)$hl['size'];
+            $fontObj    = $hl['font'];
+            $text       = (string)$hl['text'];
+            $estimatedW = estimate_text_width($text, $fontSize, $fontObj);
+            $lineX      = $tx + ($textAreaWidth / 2) - ($estimatedW / 2);
+
+            if ($template === 'internal') {
+                if ($idx === 0) {
+                    // Line 1: "ARAGON " in red + "SECURITY AND INVESTIGATION" in teal
+                    $fullWidth = estimate_text_width('ARAGON SECURITY AND INVESTIGATION', $fontSize, 'F2');
+                    $line1X    = $tx + ($textAreaWidth / 2) - ($fullWidth / 2);
+                    $content .= "0.7 0 0 rg\n";
+                    $content .= pdf_text($line1X,      $lineY, 'F2', $fontSize, 'ARAGON ');
+                    $content .= "0 0.3 0.6 rg\n";
+                    $content .= pdf_text($line1X + 68, $lineY, 'F2', $fontSize, 'SECURITY AND INVESTIGATION');
+                } elseif ($idx === 1) {
+                    $content .= "0 0.3 0.6 rg\n";
+                    $content .= pdf_text($lineX, $lineY, 'F2', $fontSize, $text);
+                } else {
+                    $content .= "0 0 0 rg\n";
+                    $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
+                }
+            } else {
+                $content .= "0 0 0 rg\n";
+                $content .= pdf_text($lineX, $lineY, $fontObj, $fontSize, $text);
+            }
         }
+
+        $y -= 80;
     };
 
     $start_new_page();
