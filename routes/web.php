@@ -3,13 +3,14 @@
  * Application route definitions.
  *
  * Expected variables in scope (set by public/index.php):
- *   $router   – Router instance
- *   $request  – Request instance
- *   $response – Response instance
+ *   $router – Router instance
  *
- * Controllers are loaded lazily (only when their route is matched).
- * Both GET and POST are registered for every page that handles form submissions.
+ * Routes now use Controller@method notation for cleaner, more maintainable code.
+ * The Router will automatically resolve controllers via the DI container.
  */
+
+use App\Core\Request;
+use App\Core\Response;
 
 // ─────────────────────────────────────────────
 // Root  /
@@ -24,230 +25,98 @@ $router->get('/', function (Request $req, Response $res): void {
 // ─────────────────────────────────────────────
 // Authentication
 // ─────────────────────────────────────────────
-$router->get('/login.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AuthController.php';
-    (new AuthController())->login();
-});
-$router->post('/login.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AuthController.php';
-    (new AuthController())->login();
-});
-$router->get('/logout.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/LogoutController.php';
-    (new LogoutController())->index();
-});
+$router->get('/login.php', 'AuthController@login');
+$router->post('/login.php', 'AuthController@login');
+$router->get('/logout.php', 'LogoutController@index');
 
 // Legacy clean-URL aliases (kept for any direct links that omit .php)
-$router->get('/login', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AuthController.php';
-    (new AuthController())->login();
-});
-$router->post('/login', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AuthController.php';
-    (new AuthController())->login();
-});
-$router->get('/logout', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/LogoutController.php';
-    (new LogoutController())->index();
-});
+$router->get('/login', 'AuthController@login');
+$router->post('/login', 'AuthController@login');
+$router->get('/logout', 'LogoutController@index');
 
 // ─────────────────────────────────────────────
 // Dashboards
 // ─────────────────────────────────────────────
-$router->get('/dashboard.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DashboardController.php';
-    (new DashboardController())->gaDashboard();
-});
-$router->get('/security-dashboard.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DashboardController.php';
-    (new DashboardController())->securityDashboard();
-});
-$router->get('/department-dashboard.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DashboardController.php';
-    (new DashboardController())->departmentDashboard();
-});
+$router->get('/dashboard.php', 'DashboardController@gaDashboard');
+$router->get('/security-dashboard.php', 'DashboardController@securityDashboard');
+$router->get('/department-dashboard.php', 'DashboardController@departmentDashboard');
 
 // ─────────────────────────────────────────────
 // Reports – GA / shared
 // ─────────────────────────────────────────────
-$router->get('/reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ReportsController.php';
-    (new ReportsController())->index();
-});
-$router->get('/returned-reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ReturnedReportsController.php';
-    (new ReturnedReportsController())->index();
-});
-$router->post('/returned-reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ReturnedReportsController.php';
-    (new ReturnedReportsController())->index();
-});
-$router->get('/ga-staff-review.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaStaffReviewController.php';
-    (new GaStaffReviewController())->index();
-});
-$router->post('/ga-staff-review.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaStaffReviewController.php';
-    (new GaStaffReviewController())->index();
-});
-$router->get('/ga-president-approval.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaPresidentApprovalController.php';
-    (new GaPresidentApprovalController())->index();
-});
-$router->post('/ga-president-approval.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaPresidentApprovalController.php';
-    (new GaPresidentApprovalController())->index();
-});
+$router->get('/reports.php', 'ReportsController@index');
+$router->get('/returned-reports.php', 'ReturnedReportsController@index');
+$router->post('/returned-reports.php', 'ReturnedReportsController@index');
+$router->get('/ga-staff-review.php', 'GaStaffReviewController@index');
+$router->post('/ga-staff-review.php', 'GaStaffReviewController@index');
+$router->get('/ga-president-approval.php', 'GaPresidentApprovalController@index');
+$router->post('/ga-president-approval.php', 'GaPresidentApprovalController@index');
 
 // ─────────────────────────────────────────────
 // Reports – Security
 // ─────────────────────────────────────────────
-$router->get('/submit-report.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/SubmitReportController.php';
-    (new SubmitReportController())->index();
-});
-$router->post('/submit-report.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/SubmitReportController.php';
-    (new SubmitReportController())->index();
-});
-$router->get('/final-checking.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/FinalCheckingController.php';
-    (new FinalCheckingController())->index();
-});
-$router->post('/final-checking.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/FinalCheckingController.php';
-    (new FinalCheckingController())->index();
-});
-$router->get('/security-reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/SecurityReportsController.php';
-    (new SecurityReportsController())->index();
-});
+$router->get('/submit-report.php', 'SubmitReportController@index');
+$router->post('/submit-report.php', 'SubmitReportController@index');
+$router->get('/final-checking.php', 'FinalCheckingController@index');
+$router->post('/final-checking.php', 'FinalCheckingController@index');
+$router->get('/security-reports.php', 'SecurityReportsController@index');
 
 // ─────────────────────────────────────────────
 // Reports – Department
 // ─────────────────────────────────────────────
-$router->get('/assigned-reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AssignedReportsController.php';
-    (new AssignedReportsController())->index();
-});
-$router->post('/assigned-reports.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/AssignedReportsController.php';
-    (new AssignedReportsController())->index();
-});
-$router->get('/department-action.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DepartmentActionController.php';
-    (new DepartmentActionController())->index();
-});
-$router->post('/department-action.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DepartmentActionController.php';
-    (new DepartmentActionController())->index();
-});
-$router->get('/department-history.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DepartmentHistoryController.php';
-    (new DepartmentHistoryController())->index();
-});
+$router->get('/assigned-reports.php', 'AssignedReportsController@index');
+$router->post('/assigned-reports.php', 'AssignedReportsController@index');
+$router->get('/department-action.php', 'DepartmentActionController@index');
+$router->post('/department-action.php', 'DepartmentActionController@index');
+$router->get('/department-history.php', 'DepartmentHistoryController@index');
 
 // ─────────────────────────────────────────────
 // History / Print
 // ─────────────────────────────────────────────
-$router->get('/history.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/HistoryController.php';
-    (new HistoryController())->index();
-});
-$router->get('/print_report.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/PrintReportController.php';
-    (new PrintReportController())->show();
-});
-$router->get('/view-report.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ReportViewController.php';
-    (new ReportViewController())->show();
-});
-$router->get('/print_report_by_no.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/PrintReportByNoController.php';
-    (new PrintReportByNoController())->redirect();
-});
+$router->get('/history.php', 'HistoryController@index');
+$router->get('/print_report.php', 'PrintReportController@show');
+$router->get('/view-report.php', 'ReportViewController@show');
+$router->get('/print_report_by_no.php', 'PrintReportByNoController@redirect');
 
 // ─────────────────────────────────────────────
 // Statistics
 // ─────────────────────────────────────────────
-$router->get('/statistics.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/StatisticsController.php';
-    (new StatisticsController())->index();
-});
-$router->get('/security-statistics.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/SecurityStatisticsController.php';
-    (new SecurityStatisticsController())->index();
-});
-$router->get('/department-statistics.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DepartmentStatisticsController.php';
-    (new DepartmentStatisticsController())->index();
-});
+$router->get('/statistics.php', 'StatisticsController@index');
+$router->get('/security-statistics.php', 'SecurityStatisticsController@index');
+$router->get('/department-statistics.php', 'DepartmentStatisticsController@index');
 
 // ─────────────────────────────────────────────
 // GA Staff sub-pages  (ga_staff/*)
 // ─────────────────────────────────────────────
-$router->get('/ga_staff/statistics.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaStaffStatisticsController.php';
-    (new GaStaffStatisticsController())->index();
-});
-$router->get('/ga_staff/user_management.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaStaffUserManagementController.php';
-    (new GaStaffUserManagementController())->index();
-});
-$router->post('/ga_staff/user_management.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/GaStaffUserManagementController.php';
-    (new GaStaffUserManagementController())->index();
-});
+$router->get('/ga_staff/statistics.php', 'GaStaffStatisticsController@index');
+$router->get('/ga_staff/user_management.php', 'GaStaffUserManagementController@index');
+$router->post('/ga_staff/user_management.php', 'GaStaffUserManagementController@index');
 
 // ─────────────────────────────────────────────
 // Users & Notifications
 // ─────────────────────────────────────────────
-$router->get('/users.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/UsersController.php';
-    (new UsersController())->index();
-});
-$router->post('/users.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/UsersController.php';
-    (new UsersController())->index();
-});
-$router->get('/notifications.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/NotificationsController.php';
-    (new NotificationsController())->index();
-});
-$router->post('/notifications.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/NotificationsController.php';
-    (new NotificationsController())->index();
-});
+$router->get('/users.php', 'UsersController@index');
+$router->post('/users.php', 'UsersController@index');
+$router->get('/notifications.php', 'NotificationsController@index');
+$router->post('/notifications.php', 'NotificationsController@index');
 
 // ─────────────────────────────────────────────
 // Profile
 // ─────────────────────────────────────────────
-$router->get('/profile.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ProfileController.php';
-    (new ProfileController())->index();
-});
-$router->post('/profile.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/ProfileController.php';
-    (new ProfileController())->index();
-});
+$router->get('/profile.php', 'ProfileController@index');
+$router->post('/profile.php', 'ProfileController@index');
 
 // ─────────────────────────────────────────────
 // Download
 // ─────────────────────────────────────────────
-$router->get('/download.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DownloadController.php';
-    (new DownloadController())->index();
-});
-$router->post('/download.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/DownloadController.php';
-    (new DownloadController())->index();
-});
+$router->get('/download.php', 'DownloadController@index');
+$router->post('/download.php', 'DownloadController@index');
 
 // ─────────────────────────────────────────────
 // 404  (direct access to legacy 404.php URL)
 // ─────────────────────────────────────────────
 $router->get('/404.php', function (Request $req, Response $res): void {
-    require_once __DIR__ . '/../app/controllers/NotFoundController.php';
     http_response_code(404);
+    require_once __DIR__ . '/../app/controllers/NotFoundController.php';
     (new NotFoundController())->index();
 });
