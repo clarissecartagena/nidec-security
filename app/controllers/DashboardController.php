@@ -1,14 +1,17 @@
 <?php
 
+namespace App\Controllers;
+
 require_once __DIR__ . '/../services/DashboardService.php';
 
-class DashboardController
+class DashboardController extends BaseController
 {
-    private DashboardService $service;
+    private \DashboardService $service;
 
-    public function __construct(?DashboardService $service = null)
+    public function __construct(?\DashboardService $service = null)
     {
-        $this->service = $service ?: new DashboardService();
+        parent::__construct();
+        $this->service = $service ?: new \DashboardService();
     }
 
     public function gaDashboard(): void
@@ -81,8 +84,7 @@ class DashboardController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'department') {
-            header('Location: login.php');
-            exit;
+            $this->redirect('login.php');
         }
 
         $deptId = (int)($currentUser['department_id'] ?? 0);

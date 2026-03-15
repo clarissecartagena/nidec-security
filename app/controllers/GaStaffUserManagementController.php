@@ -1,6 +1,9 @@
 <?php
 
-class GaStaffUserManagementController
+namespace App\Controllers;
+
+
+class GaStaffUserManagementController extends BaseController
 {
     public function index(): void
     {

@@ -1,6 +1,9 @@
 <?php
 
-class PrintReportByNoController
+namespace App\Controllers;
+
+
+class PrintReportByNoController extends BaseController
 {
     public function redirect(): void
     {

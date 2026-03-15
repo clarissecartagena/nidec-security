@@ -1,6 +1,9 @@
 <?php
 
-class DepartmentActionController
+namespace App\Controllers;
+
+
+class DepartmentActionController extends BaseController
 {
     public function index(): void
     {

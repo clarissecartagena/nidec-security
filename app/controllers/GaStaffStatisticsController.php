@@ -1,6 +1,9 @@
 <?php
 
-class GaStaffStatisticsController
+namespace App\Controllers;
+
+
+class GaStaffStatisticsController extends BaseController
 {
     public function index(): void
     {

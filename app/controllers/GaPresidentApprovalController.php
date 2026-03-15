@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/GaPresidentApprovalService.php';
 
-class GaPresidentApprovalController
+class GaPresidentApprovalController extends BaseController
 {
     private GaPresidentApprovalService $service;
 

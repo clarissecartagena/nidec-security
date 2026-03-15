@@ -1,6 +1,9 @@
 <?php
 
-class ReportViewController
+namespace App\Controllers;
+
+
+class ReportViewController extends BaseController
 {
     public function show(): void
     {

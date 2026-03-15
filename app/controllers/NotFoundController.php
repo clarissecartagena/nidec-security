@@ -1,6 +1,8 @@
 <?php
 
-class NotFoundController
+namespace App\Controllers;
+
+class NotFoundController extends BaseController
 {
     public function index(): void
     {

@@ -1,6 +1,9 @@
 <?php
 
-class StatisticsController
+namespace App\Controllers;
+
+
+class StatisticsController extends BaseController
 {
     public function index(): void
     {

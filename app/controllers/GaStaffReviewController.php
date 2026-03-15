@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/GaStaffReviewService.php';
 
-class GaStaffReviewController
+class GaStaffReviewController extends BaseController
 {
     private GaStaffReviewService $service;
 

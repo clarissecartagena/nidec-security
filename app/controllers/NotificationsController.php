@@ -1,6 +1,9 @@
 <?php
 
-class NotificationsController
+namespace App\Controllers;
+
+
+class NotificationsController extends BaseController
 {
     public function index(): void
     {
