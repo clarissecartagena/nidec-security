@@ -1,7 +1,17 @@
 <?php
 
-class Request {
-    public function method(): string {
+namespace App\Core;
+
+/**
+ * Request Class
+ *
+ * Handles HTTP request data and provides helper methods for accessing
+ * request parameters, headers, and other request information.
+ */
+class Request
+{
+    public function method(): string
+    {
         return strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     }
 
@@ -14,7 +24,8 @@ class Request {
      *      base directory (e.g. /NidecSecurity/public) so that a request for
      *      /NidecSecurity/public/login.php is normalised to /login.php.
      */
-    public function path(): string {
+    public function path(): string
+    {
         // Legacy mode: explicit ?r= parameter takes priority.
         $path = $_GET['r'] ?? null;
         if ($path !== null && $path !== '') {
@@ -59,5 +70,78 @@ class Request {
 
         $path = '/' . trim($uriPath, '/');
         return $path === '//' ? '/' : $path;
+    }
+
+    /**
+     * Get input from GET parameters.
+     */
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return $_GET[$key] ?? $default;
+    }
+
+    /**
+     * Get input from POST parameters.
+     */
+    public function post(string $key, mixed $default = null): mixed
+    {
+        return $_POST[$key] ?? $default;
+    }
+
+    /**
+     * Get input from either POST or GET (POST takes priority).
+     */
+    public function input(string $key, mixed $default = null): mixed
+    {
+        return $this->post($key) ?? $this->get($key) ?? $default;
+    }
+
+    /**
+     * Get all input data.
+     */
+    public function all(): array
+    {
+        return array_merge($_GET, $_POST);
+    }
+
+    /**
+     * Check if request is POST.
+     */
+    public function isPost(): bool
+    {
+        return $this->method() === 'POST';
+    }
+
+    /**
+     * Check if request is GET.
+     */
+    public function isGet(): bool
+    {
+        return $this->method() === 'GET';
+    }
+
+    /**
+     * Check if request has a specific key.
+     */
+    public function has(string $key): bool
+    {
+        return isset($_GET[$key]) || isset($_POST[$key]);
+    }
+
+    /**
+     * Get server variable.
+     */
+    public function server(string $key, mixed $default = null): mixed
+    {
+        return $_SERVER[$key] ?? $default;
+    }
+
+    /**
+     * Get request header.
+     */
+    public function header(string $key, mixed $default = null): mixed
+    {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $key));
+        return $_SERVER[$key] ?? $default;
     }
 }

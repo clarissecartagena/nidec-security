@@ -1,11 +1,12 @@
 <?php
 
-class LogoutController
+namespace App\Controllers;
+
+class LogoutController extends BaseController
 {
     public function index(): void
     {
         auth_logout();
-        header('Location: ' . app_url('login.php'));
-        exit();
+        $this->redirect(app_url('login.php'));
     }
 }

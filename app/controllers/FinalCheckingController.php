@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/FinalCheckingService.php';
 
-class FinalCheckingController
+class FinalCheckingController extends BaseController
 {
     private FinalCheckingService $service;
 

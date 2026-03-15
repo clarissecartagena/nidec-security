@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/UsersService.php';
 
-class UsersController
+class UsersController extends BaseController
 {
     private UsersService $service;
 

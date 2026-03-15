@@ -1,6 +1,9 @@
 <?php
 
-class DepartmentStatisticsController
+namespace App\Controllers;
+
+
+class DepartmentStatisticsController extends BaseController
 {
     public function index(): void
     {

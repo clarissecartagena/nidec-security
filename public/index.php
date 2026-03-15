@@ -5,17 +5,28 @@
  * Apache .htaccess rewrites all page requests here.
  * Static assets, uploads, and API files are served directly (bypassed in .htaccess).
  */
+
+// Start session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Autoload dependencies via Composer
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Load legacy configuration and helpers (for backward compatibility)
 require_once __DIR__ . '/../includes/config.php';
-require_once __DIR__ . '/../app/core/Router.php';   // also loads Request + Response
 
-$request  = new Request();
-$response = new Response();
-$router   = new Router($request, $response);
+// Create the Application instance
+use App\Core\Application;
 
+$app = new Application();
+
+// Get router from application
+$router = $app->getRouter();
+
+// Load routes
 require __DIR__ . '/../routes/web.php';
 
-$router->dispatch();
+// Run the application
+$app->run();

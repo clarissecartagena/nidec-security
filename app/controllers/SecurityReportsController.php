@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/SecurityReportsService.php';
 
-class SecurityReportsController
+class SecurityReportsController extends BaseController
 {
     private SecurityReportsService $service;
 

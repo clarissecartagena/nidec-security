@@ -1,6 +1,9 @@
 <?php
 
-class SecurityStatisticsController
+namespace App\Controllers;
+
+
+class SecurityStatisticsController extends BaseController
 {
     public function index(): void
     {

@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Controllers;
+
+
 require_once __DIR__ . '/../services/DepartmentHistoryService.php';
 
-class DepartmentHistoryController
+class DepartmentHistoryController extends BaseController
 {
     private DepartmentHistoryService $service;
 

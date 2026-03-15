@@ -1,6 +1,9 @@
 <?php
 
-class DownloadController
+namespace App\Controllers;
+
+
+class DownloadController extends BaseController
 {
     public function index(): void
     {

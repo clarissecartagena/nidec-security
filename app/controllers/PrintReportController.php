@@ -1,6 +1,9 @@
 <?php
 
-class PrintReportController
+namespace App\Controllers;
+
+
+class PrintReportController extends BaseController
 {
     public function show(): void
     {
