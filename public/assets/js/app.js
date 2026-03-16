@@ -3113,6 +3113,7 @@ const SidebarCollapse = {
       // Only apply the collapsed layout on desktop.
       if (!this._mq.matches) {
         document.body.classList.remove('sidebar-collapsed');
+        document.documentElement.classList.remove('sidebar-collapsed');
         this._updateButton(false);
         return;
       }
@@ -3140,11 +3141,13 @@ const SidebarCollapse = {
     const shouldCollapse = Boolean(collapsed);
     if (this._mq && !this._mq.matches) {
       document.body.classList.remove('sidebar-collapsed');
+      document.documentElement.classList.remove('sidebar-collapsed');
       this._updateButton(false);
       return;
     }
 
     document.body.classList.toggle('sidebar-collapsed', shouldCollapse);
+    document.documentElement.classList.toggle('sidebar-collapsed', shouldCollapse);
     this._writeStored(shouldCollapse);
     this._updateButton(shouldCollapse);
   },

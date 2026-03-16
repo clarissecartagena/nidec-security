@@ -6,7 +6,14 @@
  * Static assets, uploads, and API files are served directly (bypassed in .htaccess).
  */
 
-// Start session
+// Start session — use a project-local storage directory so Apache has
+// guaranteed write access regardless of C:\xampp\tmp permissions.
+$_sessionPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+if (!is_dir($_sessionPath)) {
+    mkdir($_sessionPath, 0755, true);
+}
+session_save_path($_sessionPath);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

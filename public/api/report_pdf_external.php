@@ -1,7 +1,22 @@
 <?php
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../config/api.php';
 
-if (!isAuthenticated()) {
+function sync_pdf_read_key_from_request(): string {
+    $headerKey = trim((string)($_SERVER['HTTP_X_API_KEY'] ?? ''));
+    if ($headerKey !== '') return $headerKey;
+    $authHeader = trim((string)($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
+    if ($authHeader !== '' && preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
+        return trim((string)($m[1] ?? ''));
+    }
+    return trim((string)($_GET['api_key'] ?? ''));
+}
+
+$syncExpectedKey = (string)(defined('REPORTS_SYNC_API_KEY') ? REPORTS_SYNC_API_KEY : '');
+$syncProvidedKey = sync_pdf_read_key_from_request();
+$syncApiAuthorized = ($syncExpectedKey !== '' && $syncProvidedKey !== '' && hash_equals($syncExpectedKey, $syncProvidedKey));
+
+if (!isAuthenticated() && !$syncApiAuthorized) {
     http_response_code(401);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'Unauthorized']);
@@ -10,12 +25,14 @@ if (!isAuthenticated()) {
 
 $user = getUser();
 $role = (string)($user['role'] ?? '');
-$allowedRoles = ['ga_president', 'ga_staff', 'security', 'department'];
-if (!in_array($role, $allowedRoles, true)) {
-    http_response_code(403);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['error' => 'Forbidden']);
-    exit;
+if (!$syncApiAuthorized) {
+    $allowedRoles = ['ga_president', 'ga_staff', 'security', 'department'];
+    if (!in_array($role, $allowedRoles, true)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
 }
 
 $reportNo = trim((string)($_GET['id'] ?? ''));
@@ -26,30 +43,31 @@ if ($reportNo === '') {
     exit;
 }
 
-$userBuilding = normalize_building($user['entity'] ?? $user['building'] ?? null);
-$userDepartmentId = (int)($user['department_id'] ?? 0);
-
 $whereExtra = '';
 $params = [$reportNo];
 
-if ($role === 'security') {
-    if (!$userBuilding) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => 'Account is missing an assigned building']);
-        exit;
+if (!$syncApiAuthorized) {
+    $userBuilding = normalize_building($user['entity'] ?? $user['building'] ?? null);
+    $userDepartmentId = (int)($user['department_id'] ?? 0);
+    if ($role === 'security') {
+        if (!$userBuilding) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'Account is missing an assigned building']);
+            exit;
+        }
+        $whereExtra = ' AND r.building = ?';
+        $params[] = $userBuilding;
+    } elseif ($role === 'department') {
+        if ($userDepartmentId <= 0) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'Account is missing an assigned department']);
+            exit;
+        }
+        $whereExtra = ' AND r.responsible_department_id = ?';
+        $params[] = $userDepartmentId;
     }
-    $whereExtra = ' AND r.building = ?';
-    $params[] = $userBuilding;
-} elseif ($role === 'department') {
-    if ($userDepartmentId <= 0) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => 'Account is missing an assigned department']);
-        exit;
-    }
-    $whereExtra = ' AND r.responsible_department_id = ?';
-    $params[] = $userDepartmentId;
 }
 
 // Detect whether migration 007 (job_level column) has been applied to this database.

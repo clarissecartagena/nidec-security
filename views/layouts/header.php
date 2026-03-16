@@ -136,6 +136,18 @@ if (isset($requiredRole)) {
             window.APP_BASE_URL = <?php echo json_encode(APP_BASE_URL, JSON_UNESCAPED_SLASHES); ?>;
             // Use live DB-backed API for modals/notifications instead of mock Data.
             window.NIDEC_SERVER_MODE = true;
+            // Apply persisted sidebar state before first paint to avoid expanded->collapsed flicker.
+            (function () {
+                try {
+                    var isDesktop = window.matchMedia('(min-width: 768px)').matches;
+                    var collapsed = localStorage.getItem('nidec_sidebar_collapsed') === '1';
+                    if (isDesktop && collapsed) {
+                        document.documentElement.classList.add('sidebar-collapsed');
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })();
         </script>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars(app_url('assets/images/security_icon.png')); ?>?v=1">
 
@@ -164,3 +176,16 @@ if (isset($requiredRole)) {
         </style>
 </head>
 <body class="bg-background text-foreground">
+<script>
+    (function () {
+        try {
+            if (document.documentElement.classList.contains('sidebar-collapsed')) {
+                document.body.classList.add('sidebar-collapsed');
+            } else {
+                document.body.classList.remove('sidebar-collapsed');
+            }
+        } catch (e) {
+            // ignore
+        }
+    })();
+</script>

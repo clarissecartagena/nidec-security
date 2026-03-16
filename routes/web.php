@@ -76,7 +76,7 @@ $router->get('/department-history.php', 'DepartmentHistoryController@index');
 $router->get('/history.php', 'HistoryController@index');
 $router->get('/print_report.php', 'PrintReportController@show');
 $router->get('/view-report.php', 'ReportViewController@show');
-$router->get('/print_report_by_no.php', 'PrintReportByNoController@redirect');
+$router->get('/print_report_by_no.php', 'PrintReportByNoController@handleRedirect');
 
 // ─────────────────────────────────────────────
 // Statistics

@@ -72,13 +72,16 @@ $signatureUrl  = $hasSignature ? htmlspecialchars(app_url($dbUser['signature_pat
                             <div class="mb-3">
                                 <label class="form-label fw-medium" for="profile-email">
                                     Email Address
+                                    <span id="profile-email-verified" class="ms-2 text-success small d-none">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Verified
+                                    </span>
                                 </label>
                                 <input type="email" id="profile-email" name="email"
                                        class="form-control"
                                        value="<?php echo htmlspecialchars($dbUser['email'] ?? ''); ?>"
                                        placeholder="your@email.com"
                                        required />
-                                <div class="form-text">This email may be shown on PDF reports.</div>
+                                <div id="profile-email-helper" class="form-text"></div>
                             </div>
 
                             <div class="d-flex justify-content-end">
@@ -268,6 +271,44 @@ const ProfilePage = {
     _cropper: null,      // active Cropper.js instance
     _croppedBlob: null,  // blob produced by applyCrop(); null = use original file
 
+    initEmailStatus() {
+        const emailInput = document.getElementById('profile-email');
+        if (!emailInput) return;
+        emailInput.addEventListener('input', () => this.updateEmailStatus());
+        emailInput.addEventListener('blur', () => this.updateEmailStatus());
+        this.updateEmailStatus();
+    },
+
+    updateEmailStatus() {
+        const emailInput = document.getElementById('profile-email');
+        const helper = document.getElementById('profile-email-helper');
+        const verified = document.getElementById('profile-email-verified');
+        if (!emailInput || !helper || !verified) return;
+
+        const email = String(emailInput.value || '').trim();
+
+        if (email === '') {
+            helper.textContent = 'Email is required for notification purposes. Please enter your email.';
+            helper.classList.remove('text-success', 'text-warning');
+            helper.classList.add('text-danger');
+            verified.classList.add('d-none');
+            return;
+        }
+
+        if (emailInput.checkValidity()) {
+            helper.textContent = 'Email is ready and will be used for notifications.';
+            helper.classList.remove('text-danger', 'text-warning');
+            helper.classList.add('text-success');
+            verified.classList.remove('d-none');
+            return;
+        }
+
+        helper.textContent = 'Please enter a valid email address for notification purposes.';
+        helper.classList.remove('text-success', 'text-danger');
+        helper.classList.add('text-warning');
+        verified.classList.add('d-none');
+    },
+
     openSignatureModal() {
         document.getElementById('sig-file-input').value = '';
         this._hideCropAndPreview();
@@ -456,4 +497,10 @@ const ProfilePage = {
         }
     },
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    ProfilePage.initEmailStatus();
+});
 </script>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

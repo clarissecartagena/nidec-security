@@ -232,9 +232,233 @@ function user_status_badge(string $status): string {
 }
 
 function user_role_label(string $role): string {
-    return $role === 'security' ? 'Security' : 'Department';
+    return $role === 'security' ? 'Security' : 'Department PIC';
 }
 ?>
+
+<style>
+    .user-filters-wrap {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--border));
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 16px;
+    }
+
+    .user-filter-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: hsl(var(--muted-foreground));
+        font-weight: 700;
+    }
+
+    .users-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 768px) {
+        .users-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .users-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .user-card {
+        --user-accent: hsl(var(--info));
+        --user-accent-soft: hsl(var(--info) / 0.1);
+        border: 1px solid hsl(var(--border));
+        border-left: 4px solid var(--user-accent);
+        border-radius: 12px;
+        background: linear-gradient(165deg, var(--user-accent-soft) 0%, hsl(var(--card)) 46%, hsl(var(--muted) / 0.2) 100%);
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 188px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .user-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
+        border-color: color-mix(in srgb, var(--user-accent) 35%, hsl(var(--border)));
+    }
+
+    .user-card--security {
+        --user-accent: var(--bs-primary, #0d6efd);
+        --user-accent-soft: color-mix(in srgb, var(--bs-primary, #0d6efd) 18%, transparent);
+    }
+
+    .user-card--department {
+        --user-accent: var(--bs-warning, #f59f00);
+        --user-accent-soft: color-mix(in srgb, var(--bs-warning, #f59f00) 20%, transparent);
+    }
+
+    .user-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .user-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: hsl(var(--primary) / 0.12);
+        color: hsl(var(--primary));
+        font-size: 16px;
+        flex: 0 0 auto;
+    }
+
+    .user-card-name {
+        margin: 0;
+        font-weight: 700;
+        font-size: 15px;
+        line-height: 1.2;
+    }
+
+    .user-card-name--security {
+        color: var(--bs-primary, #0d6efd);
+    }
+
+    .user-card-name--department {
+        color: #b06a00;
+    }
+
+    .user-card-sub {
+        margin: 0;
+        color: hsl(var(--muted-foreground));
+        font-size: 12px;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .user-card-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .user-role-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .user-role-chip--security {
+        background: color-mix(in srgb, var(--bs-primary, #0d6efd) 16%, transparent);
+        border: 1px solid color-mix(in srgb, var(--bs-primary, #0d6efd) 40%, transparent);
+        color: var(--bs-primary, #0d6efd);
+    }
+
+    .user-role-chip--department {
+        background: color-mix(in srgb, var(--bs-warning, #f59f00) 16%, transparent);
+        border: 1px solid color-mix(in srgb, var(--bs-warning, #f59f00) 40%, transparent);
+        color: #9a5d00;
+    }
+
+    .user-card-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .user-meta-box {
+        border: 1px solid hsl(var(--border));
+        border-radius: 8px;
+        padding: 8px;
+        background: hsl(var(--muted) / 0.25);
+    }
+
+    .user-meta-label {
+        font-size: 11px;
+        color: hsl(var(--muted-foreground));
+        margin-bottom: 2px;
+    }
+
+    .user-meta-value {
+        font-size: 12px;
+        color: hsl(var(--foreground));
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .user-card-actions {
+        margin-top: auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .user-card-action-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        min-height: 34px;
+        padding: 6px 10px;
+    }
+
+    .user-card-action-btn i {
+        font-size: 13px;
+    }
+
+    .user-card-action-btn--edit {
+        background-color: var(--bs-primary, #0d6efd);
+        border-color: var(--bs-primary, #0d6efd);
+        color: #fff;
+    }
+
+    .user-card-action-btn--edit:hover,
+    .user-card-action-btn--edit:focus {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+        color: #fff;
+    }
+
+    .user-card-action-btn--delete {
+        background-color: var(--bs-danger, #dc3545);
+        border-color: var(--bs-danger, #dc3545);
+        color: #fff;
+    }
+
+    .user-card-action-btn--delete:hover,
+    .user-card-action-btn--delete:focus {
+        background-color: #bb2d3b;
+        border-color: #b02a37;
+        color: #fff;
+    }
+
+    .users-empty-card {
+        border: 1px dashed hsl(var(--border));
+        border-radius: 12px;
+        background: hsl(var(--muted) / 0.2);
+        padding: 24px;
+        text-align: center;
+        color: hsl(var(--muted-foreground));
+        font-size: 14px;
+    }
+</style>
 
 <main class="main-content">
     <div class="animate-fade-in">
@@ -263,78 +487,112 @@ function user_role_label(string $role): string {
             </div>
         <?php endif; ?>
 
-        <div class="table-container table-card" style="--table-accent: var(--info)">
-            <div class="px-4 py-3 border-b flex items-center justify-between">
-                <div>
-                    <h3 class="font-semibold text-foreground">Users</h3>
-                    <p class="text-xs text-muted-foreground">Security and Department accounts only</p>
+        <div class="user-filters-wrap">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-7 col-lg-8">
+                    <label class="user-filter-label mb-1" for="users-search-input">Search Users</label>
+                    <input type="text" id="users-search-input" class="form-control" placeholder="Search name, employee no, username, department..." />
                 </div>
-                <div class="text-xs text-muted-foreground">Total: <?php echo (int)count($users); ?></div>
+                <div class="col-12 col-md-5 col-lg-4">
+                    <label class="user-filter-label mb-1" for="users-role-filter">Role</label>
+                    <select id="users-role-filter" class="form-select">
+                        <option value="all">All Roles</option>
+                        <option value="security">Security</option>
+                        <option value="department">Department PIC</option>
+                    </select>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Emp ID</th>
-                        <th>Name</th>
-                        <th>Username</th>
-                        <th>Role</th>
-                        <th>Department</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+        </div>
+
+        <div>
+            <div class="p-0">
+                <div id="users-card-grid" class="users-grid">
                     <?php if (empty($users)): ?>
-                        <tr><td colspan="7" class="text-center text-muted-foreground">No users found.</td></tr>
+                        <div class="users-empty-card">No users found.</div>
                     <?php else: ?>
                         <?php foreach ($users as $u): ?>
-                            <tr>
-                                <td class="font-mono text-xs"><?php echo htmlspecialchars($u['employee_no'] ?? '—'); ?></td>
-                                <td class="font-medium"><?php echo htmlspecialchars($u['name']); ?></td>
-                                <td class="font-mono text-xs"><?php echo htmlspecialchars($u['username']); ?></td>
-                                <td class="text-muted-foreground"><?php echo htmlspecialchars(user_role_label($u['role'])); ?></td>
-                                <td class="text-muted-foreground"><?php echo htmlspecialchars($u['department_name'] ?? '—'); ?></td>
-                                <td><?php echo user_status_badge((string)($u['account_status'] ?? 'inactive')); ?></td>
-                                <td>
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" class="icon-btn" title="Edit"
-                                            onclick="UsersPage.openEditModal(this)"
-                                            data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (string)$u['employee_no'],
-                                                'name' => (string)$u['name'],
-                                                'username' => (string)$u['username'],
-                                                'role' => (string)$u['role'],
-                                                'department_id' => (int)($u['department_id'] ?? 0),
-                                                'department' => (string)($u['department_name'] ?? ''),
-                                                'security_type' => (string)($u['security_type'] ?? ''),
-                                                'entity' => (string)($u['entity'] ?? ''),
-                                                'account_status' => (string)($u['account_status'] ?? 'active')
-                                            ]), ENT_QUOTES, 'UTF-8'); ?>">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                                            </svg>
-                                        </button>
-                                        <button type="button" class="icon-btn" title="Delete"
-                                            onclick="UsersPage.openDeleteModal(this)"
-                                            data-user="<?php echo htmlspecialchars(json_encode([
-                                                'id' => (string)$u['employee_no'],
-                                                'name' => (string)$u['name'],
-                                                'username' => (string)$u['username'],
-                                                'role' => (string)$u['role'],
-                                                'department' => (string)($u['department_name'] ?? ''),
-                                                'account_status' => (string)($u['account_status'] ?? 'active')
-                                            ]), ENT_QUOTES, 'UTF-8'); ?>">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                                            </svg>
-                                        </button>
+                            <?php
+                                $roleValue = (string)($u['role'] ?? '');
+                                $roleLabel = user_role_label($roleValue);
+                                $nameRoleClass = $roleValue === 'security' ? 'user-card-name--security' : 'user-card-name--department';
+                                $chipRoleClass = $roleValue === 'security' ? 'user-role-chip--security' : 'user-role-chip--department';
+                                $cardRoleClass = $roleValue === 'security' ? 'user-card--security' : 'user-card--department';
+                                $employeeNo = (string)($u['employee_no'] ?? '—');
+                                $departmentName = (string)($u['department_name'] ?? '—');
+                                $username = (string)($u['username'] ?? '—');
+                                $fullName = (string)($u['name'] ?? '');
+                                $searchBlob = strtolower(trim($fullName . ' ' . $employeeNo . ' ' . $username . ' ' . $roleValue . ' ' . $departmentName));
+                            ?>
+                            <article
+                                class="user-card user-card-item <?php echo htmlspecialchars($cardRoleClass); ?>"
+                                data-role="<?php echo htmlspecialchars($roleValue); ?>"
+                                data-search="<?php echo htmlspecialchars($searchBlob); ?>"
+                            >
+                                <div class="user-card-top">
+                                    <div class="user-avatar" aria-hidden="true">
+                                        <i class="bi bi-person-fill"></i>
                                     </div>
-                                </td>
-                            </tr>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <p class="user-card-name <?php echo htmlspecialchars($nameRoleClass); ?> text-truncate"><?php echo htmlspecialchars($fullName); ?></p>
+                                        <p class="user-card-sub mb-0 text-truncate">
+                                            <i class="bi bi-person-badge me-1" aria-hidden="true"></i><?php echo htmlspecialchars($username); ?>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="user-card-badges">
+                                    <span class="user-role-chip <?php echo htmlspecialchars($chipRoleClass); ?>"><?php echo htmlspecialchars($roleLabel); ?></span>
+                                    <?php echo user_status_badge((string)($u['account_status'] ?? 'inactive')); ?>
+                                </div>
+
+                                <div class="user-card-meta">
+                                    <div class="user-meta-box">
+                                        <div class="user-meta-label">User ID</div>
+                                        <p class="user-meta-value font-mono"><?php echo htmlspecialchars($employeeNo); ?></p>
+                                    </div>
+                                    <div class="user-meta-box">
+                                        <div class="user-meta-label">Department</div>
+                                        <p class="user-meta-value text-truncate"><?php echo htmlspecialchars($departmentName); ?></p>
+                                    </div>
+                                </div>
+
+                                <div class="user-card-actions">
+                                    <button type="button" class="btn user-card-action-btn user-card-action-btn--edit" title="Edit"
+                                        onclick="UsersPage.openEditModal(this)"
+                                        data-user="<?php echo htmlspecialchars(json_encode([
+                                            'id' => (string)$u['employee_no'],
+                                            'name' => (string)$u['name'],
+                                            'username' => (string)$u['username'],
+                                            'role' => (string)$u['role'],
+                                            'department_id' => (int)($u['department_id'] ?? 0),
+                                            'department' => (string)($u['department_name'] ?? ''),
+                                            'security_type' => (string)($u['security_type'] ?? ''),
+                                            'entity' => (string)($u['entity'] ?? ''),
+                                            'account_status' => (string)($u['account_status'] ?? 'active')
+                                        ]), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                        <span>Edit</span>
+                                    </button>
+                                    <button type="button" class="btn user-card-action-btn user-card-action-btn--delete" title="Delete"
+                                        onclick="UsersPage.openDeleteModal(this)"
+                                        data-user="<?php echo htmlspecialchars(json_encode([
+                                            'id' => (string)$u['employee_no'],
+                                            'name' => (string)$u['name'],
+                                            'username' => (string)$u['username'],
+                                            'role' => (string)$u['role'],
+                                            'department' => (string)($u['department_name'] ?? ''),
+                                            'account_status' => (string)($u['account_status'] ?? 'active')
+                                        ]), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
+                            </article>
                         <?php endforeach; ?>
                     <?php endif; ?>
-                </tbody>
-            </table>
+                </div>
+                <div id="users-filter-empty" class="users-empty-card mt-3 hidden">No users match your filter.</div>
+            </div>
         </div>
 
         <!-- Add User Modal — two-step: search employee → set credentials/role -->
@@ -660,6 +918,12 @@ function user_role_label(string $role): string {
                 editRole.addEventListener('change', () => this.syncConditionalFields('edit'));
             }
 
+            const usersSearch = document.getElementById('users-search-input');
+            if (usersSearch) usersSearch.addEventListener('input', () => this.applyUserFilters());
+
+            const usersRoleFilter = document.getElementById('users-role-filter');
+            if (usersRoleFilter) usersRoleFilter.addEventListener('change', () => this.applyUserFilters());
+
             // Employee search bindings
             const empInput = document.getElementById('emp-search-input');
             const empBtn   = document.getElementById('emp-search-btn');
@@ -690,6 +954,33 @@ function user_role_label(string $role): string {
                     if (e.target === deleteModal) this.closeDeleteModal();
                 });
             }
+
+            this.applyUserFilters();
+        },
+
+        applyUserFilters() {
+            const cards = Array.from(document.querySelectorAll('.user-card-item'));
+            if (!cards.length) return;
+
+            const searchEl = document.getElementById('users-search-input');
+            const roleEl = document.getElementById('users-role-filter');
+            const emptyEl = document.getElementById('users-filter-empty');
+
+            const searchVal = (searchEl ? searchEl.value : '').trim().toLowerCase();
+            const roleVal = roleEl ? roleEl.value : 'all';
+
+            let visibleCount = 0;
+            cards.forEach((card) => {
+                const role = card.getAttribute('data-role') || '';
+                const searchBlob = card.getAttribute('data-search') || '';
+                const matchSearch = searchVal === '' || searchBlob.includes(searchVal);
+                const matchRole = roleVal === 'all' || role === roleVal;
+                const show = matchSearch && matchRole;
+                card.style.display = show ? '' : 'none';
+                if (show) visibleCount += 1;
+            });
+
+            if (emptyEl) emptyEl.classList.toggle('hidden', visibleCount > 0);
         },
 
         // ── Add User (employee-search flow) ──────────────────────────────

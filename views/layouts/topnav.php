@@ -19,7 +19,7 @@
 
             <!-- Notifications Bell -->
             <div class="position-relative">
-                <button id="notifications-bell" type="button" onclick="UI.toggleNotifications()"
+                <button id="notifications-bell" type="button" onclick="if (window.UI && typeof UI.toggleNotifications === 'function') { UI.toggleNotifications(); } else { window.location.href = '<?php echo htmlspecialchars(app_url('notifications.php')); ?>'; }"
                         class="topnav-icon-btn" title="Notifications" aria-label="Notifications">
                     <i class="bi bi-bell-fill" aria-hidden="true"></i>
                     <span id="notification-badge"
@@ -58,9 +58,10 @@
             <div style="width:1px; height:22px; background:#e5e7eb; margin:0 6px;"></div>
 
             <!-- Logout -->
-            <button type="button" onclick="Auth.logout()" class="topnav-icon-btn topnav-logout-btn" title="Sign out" aria-label="Sign out">
+            <a href="<?php echo htmlspecialchars(app_url('logout.php')); ?>" onclick="if (window.Auth && typeof Auth.logout === 'function') { Auth.logout(); return false; }"
+               class="topnav-icon-btn topnav-logout-btn" title="Sign out" aria-label="Sign out">
                 <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-            </button>
+            </a>
 
         </div>
     </div>

@@ -62,13 +62,15 @@
 }
 
 /* Sidebar collapsed state (desktop only; JS controls the class) */
-body.sidebar-collapsed {
+body.sidebar-collapsed,
+html.sidebar-collapsed body {
   --sidebar-width: var(--sidebar-width-collapsed);
 }
 
 /* On small screens the sidebar is offcanvas; do not reserve space */
 @media (max-width: 767.98px) {
-  body.sidebar-collapsed {
+  body.sidebar-collapsed,
+  html.sidebar-collapsed body {
     --sidebar-width: var(--sidebar-width-expanded);
   }
   .topnav,
@@ -784,6 +786,11 @@ body {
 .badge--primary { --badge-accent: var(--primary); }
 .badge--success { --badge-accent: var(--success); }
 .badge--warning { --badge-accent: var(--warning); }
+.badge--warning {
+  color: hsl(40 88% 26%) !important;
+  border-color: hsl(var(--warning) / 0.35);
+  background-color: hsl(var(--warning) / 0.16);
+}
 .badge--info { --badge-accent: var(--info); }
 .badge--destructive { --badge-accent: var(--destructive); }
 .badge--muted { --badge-accent: var(--muted-foreground); }
@@ -796,7 +803,7 @@ body {
   font-size: 0.75rem;
   font-weight: 500;
   background-color: hsl(45 100% 51% / 0.15);
-  color: hsl(45 80% 35%);
+  color: hsl(40 85% 28%);
 }
 
 .badge-approved {
@@ -1123,7 +1130,8 @@ textarea {
   object-fit: contain;
 }
 
-body.sidebar-collapsed .sidebar-brand-logo {
+body.sidebar-collapsed .sidebar-brand-logo,
+html.sidebar-collapsed body .sidebar-brand-logo {
   width: 2.25rem;
 }
 
@@ -1146,12 +1154,14 @@ body.sidebar-collapsed .sidebar-brand-logo {
   margin-bottom: 0.125rem;
 }
 
-body.sidebar-collapsed .sidebar-nav a {
+body.sidebar-collapsed .sidebar-nav a,
+html.sidebar-collapsed body .sidebar-nav a {
   justify-content: center;
   gap: 0;
 }
 
-body.sidebar-collapsed .sidebar-link-label {
+body.sidebar-collapsed .sidebar-link-label,
+html.sidebar-collapsed body .sidebar-link-label {
   display: none;
 }
 

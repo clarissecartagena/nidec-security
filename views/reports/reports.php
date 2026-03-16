@@ -74,6 +74,45 @@ function formatDate($dateString)
     .col-dept { width: 14%; }
     .col-status { width: 12%; }
     .col-date { width: 10%; }
+
+    .reports-filter-wrap {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--border));
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .reports-filter-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: hsl(var(--muted-foreground));
+        font-weight: 700;
+    }
+
+    .reports-filter-wrap .form-select,
+    .reports-filter-wrap .form-control {
+        height: 38px;
+        min-height: 38px;
+        font-size: 14px;
+    }
+
+    #reports-clear-filters {
+        height: 38px;
+        min-height: 38px;
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    #reports-clear-filters:hover,
+    #reports-clear-filters:focus {
+        background-color: #bb2d3b;
+        border-color: #b02a37;
+        color: #fff;
+    }
 </style>
 
 <main class="main-content">
@@ -83,44 +122,72 @@ function formatDate($dateString)
             <p class="text-sm text-muted-foreground mb-0">View and manage all security reports</p>
         </div>
 
-        <div class="row g-3 align-items-end mb-4">
-            <div class="col-12 col-lg-6">
-                <label class="form-label text-xs text-muted-foreground mb-1" for="search-input">Search</label>
-                <div class="input-group">
-                    <span class="input-group-text" aria-hidden="true">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input
-                        type="text"
-                        id="search-input"
-                        placeholder="Search reports..."
-                        class="form-control"
-                    />
+        <div class="reports-filter-wrap">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-lg-3">
+                    <label class="reports-filter-label mb-1" for="search-input">Search</label>
+                    <input type="text" id="search-input" placeholder="Search report no, subject, category, location..." class="form-control" />
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-3">
-                <label class="form-label text-xs text-muted-foreground mb-1" for="building-filter">Building</label>
-                <select id="building-filter" class="form-select">
-                    <option value="all" <?php echo $selectedBuilding === 'all' ? 'selected' : ''; ?>>All Buildings</option>
-                    <option value="NCFL" <?php echo $selectedBuilding === 'NCFL' ? 'selected' : ''; ?>>NCFL</option>
-                    <option value="NPFL" <?php echo $selectedBuilding === 'NPFL' ? 'selected' : ''; ?>>NPFL</option>
-                </select>
-            </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="reports-filter-label mb-1" for="category-filter">Category</label>
+                    <select id="category-filter" class="form-select">
+                        <option value="all">All</option>
+                    </select>
+                </div>
 
-            <div class="col-12 col-md-6 col-lg-3">
-                <label class="form-label text-xs text-muted-foreground mb-1" for="status-filter">Status</label>
-                <select id="status-filter" class="form-select">
-                    <option value="all">All Status</option>
-                    <option value="submitted_to_ga_staff">Submitted to GA Staff</option>
-                    <option value="ga_staff_reviewed">GA Staff Reviewed</option>
-                    <option value="submitted_to_ga_president">Waiting GA President</option>
-                    <option value="sent_to_department">Sent to Department</option>
-                    <option value="under_department_fix">Under Department Fix</option>
-                    <option value="for_security_final_check">Security Final Check</option>
-                    <option value="returned_to_department">Returned to Department</option>
-                    <option value="resolved">Resolved</option>
-                </select>
+                <div class="col-6 col-md-4 col-lg-1">
+                    <label class="reports-filter-label mb-1" for="building-filter">Entity</label>
+                    <select id="building-filter" class="form-select">
+                        <option value="all" <?php echo $selectedBuilding === 'all' ? 'selected' : ''; ?>>All</option>
+                        <option value="NCFL" <?php echo $selectedBuilding === 'NCFL' ? 'selected' : ''; ?>>NCFL</option>
+                        <option value="NPFL" <?php echo $selectedBuilding === 'NPFL' ? 'selected' : ''; ?>>NPFL</option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-1">
+                    <label class="reports-filter-label mb-1" for="severity-filter">Severity</label>
+                    <select id="severity-filter" class="form-select">
+                        <option value="all">All</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="reports-filter-label mb-1" for="department-filter">Department</label>
+                    <select id="department-filter" class="form-select">
+                        <option value="all">All</option>
+                        <?php foreach (($departmentsDb ?? []) as $d): ?>
+                            <?php $depName = strtolower(trim((string)($d['name'] ?? ''))); ?>
+                            <?php if ($depName === '') continue; ?>
+                            <option value="<?php echo htmlspecialchars($depName); ?>"><?php echo htmlspecialchars((string)$d['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="reports-filter-label mb-1" for="status-filter">Status</label>
+                    <select id="status-filter" class="form-select">
+                        <option value="all">All</option>
+                        <option value="submitted_to_ga_staff">Submitted to GA Staff</option>
+                        <option value="ga_staff_reviewed">GA Staff Reviewed</option>
+                        <option value="submitted_to_ga_president">Waiting GA President</option>
+                        <option value="sent_to_department">Sent to Department</option>
+                        <option value="under_department_fix">Under Department Fix</option>
+                        <option value="for_security_final_check">Security Final Check</option>
+                        <option value="returned_to_department">Returned to Department</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-1">
+                    <button id="reports-clear-filters" type="button" class="btn w-100">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -150,7 +217,32 @@ function formatDate($dateString)
                         <tr><td colspan="7" class="text-center text-muted-foreground">No reports found.</td></tr>
                     <?php else: ?>
                         <?php foreach ($reports as $report): ?>
-                            <tr data-status="<?php echo htmlspecialchars($report['status']); ?>" class="clickable-row" onclick="ReportModal.open('<?php echo htmlspecialchars($report['report_no']); ?>')">
+                            <?php
+                                $entityName = trim((string)($report['building'] ?? ''));
+                                if ($entityName === '') {
+                                    $subjectUpper = strtoupper((string)($report['subject'] ?? ''));
+                                    if (str_contains($subjectUpper, 'NCFL')) $entityName = 'NCFL';
+                                    elseif (str_contains($subjectUpper, 'NPFL')) $entityName = 'NPFL';
+                                }
+                                $searchBlob = strtolower(trim(
+                                    (string)($report['report_no'] ?? '') . ' ' .
+                                    (string)($report['subject'] ?? '') . ' ' .
+                                    (string)($report['category'] ?? '') . ' ' .
+                                    (string)($report['department_name'] ?? '') . ' ' .
+                                    (string)($report['severity'] ?? '') . ' ' .
+                                    (string)($report['status'] ?? '')
+                                ));
+                            ?>
+                            <tr
+                                data-status="<?php echo htmlspecialchars($report['status']); ?>"
+                                data-category="<?php echo htmlspecialchars(strtolower((string)($report['category'] ?? ''))); ?>"
+                                data-entity="<?php echo htmlspecialchars(strtolower($entityName)); ?>"
+                                data-severity="<?php echo htmlspecialchars(strtolower((string)($report['severity'] ?? ''))); ?>"
+                                data-department="<?php echo htmlspecialchars(strtolower((string)($report['department_name'] ?? ''))); ?>"
+                                data-search="<?php echo htmlspecialchars($searchBlob); ?>"
+                                class="clickable-row"
+                                onclick="ReportModal.open('<?php echo htmlspecialchars($report['report_no']); ?>')"
+                            >
                                 <td class="font-mono text-xs font-medium"><?php echo htmlspecialchars($report['report_no']); ?></td>
                                 <td class="font-medium subject-column text-truncate" style="max-width: 360px;">
                                     <?php echo htmlspecialchars($report['subject']); ?>
@@ -197,16 +289,98 @@ function formatDate($dateString)
 </main>
 
 <script>
-    (function () {
-        const el = document.getElementById('building-filter');
-        if (!el) return;
-        el.addEventListener('change', () => {
-            const val = el.value;
-            const url = new URL(window.location.href);
-            if (val === 'all') url.searchParams.delete('building');
-            else url.searchParams.set('building', val);
-            window.location.href = url.toString();
+    (() => {
+        const table = document.getElementById('reports-table');
+        if (!table) return;
+
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        const dataRows = Array.from(tbody.querySelectorAll('tr.clickable-row'));
+        if (!dataRows.length) return;
+
+        const searchEl = document.getElementById('search-input');
+        const categoryEl = document.getElementById('category-filter');
+        const entityEl = document.getElementById('building-filter');
+        const severityEl = document.getElementById('severity-filter');
+        const departmentEl = document.getElementById('department-filter');
+        const statusEl = document.getElementById('status-filter');
+        const clearEl = document.getElementById('reports-clear-filters');
+
+        if (!searchEl || !categoryEl || !entityEl || !severityEl || !departmentEl || !statusEl || !clearEl) return;
+
+        const categoryValues = Array.from(new Set(dataRows.map((row) => (row.getAttribute('data-category') || '').trim()).filter(Boolean))).sort();
+        const departmentValues = Array.from(new Set(dataRows.map((row) => (row.getAttribute('data-department') || '').trim()).filter(Boolean))).sort();
+
+        categoryValues.forEach((value) => {
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = value.replace(/\b\w/g, (m) => m.toUpperCase());
+            categoryEl.appendChild(opt);
         });
+
+        const existingDepartmentValues = new Set(Array.from(departmentEl.options).map((opt) => String(opt.value || '').trim()).filter(Boolean));
+        departmentValues.forEach((value) => {
+            if (!value || existingDepartmentValues.has(value)) return;
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = value.replace(/\b\w/g, (m) => m.toUpperCase());
+            departmentEl.appendChild(opt);
+            existingDepartmentValues.add(value);
+        });
+
+        function applyFilters() {
+            const searchVal = searchEl.value.trim().toLowerCase();
+            const categoryVal = categoryEl.value;
+            const entityVal = entityEl.value.toLowerCase();
+            const severityVal = severityEl.value;
+            const departmentVal = departmentEl.value;
+            const statusVal = statusEl.value;
+
+            let visibleCount = 0;
+
+            dataRows.forEach((row) => {
+                const category = row.getAttribute('data-category') || '';
+                const entity = row.getAttribute('data-entity') || '';
+                const severity = row.getAttribute('data-severity') || '';
+                const department = row.getAttribute('data-department') || '';
+                const status = row.getAttribute('data-status') || '';
+                const searchBlob = row.getAttribute('data-search') || '';
+
+                const matchSearch = searchVal === '' || searchBlob.includes(searchVal);
+                const matchCategory = categoryVal === 'all' || category === categoryVal;
+                const matchEntity = entityVal === 'all' || entity === entityVal;
+                const matchSeverity = severityVal === 'all' || severity === severityVal;
+                const matchDepartment = departmentVal === 'all' || department === departmentVal;
+                const matchStatus = statusVal === 'all' || status === statusVal;
+
+                const show = matchSearch && matchCategory && matchEntity && matchSeverity && matchDepartment && matchStatus;
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount += 1;
+            });
+
+            const totalInfo = document.querySelector('.table-container .p-3.border-b .text-xs.text-muted-foreground:last-child');
+            if (totalInfo) {
+                totalInfo.textContent = `Visible: ${visibleCount} / Total: ${dataRows.length}`;
+            }
+        }
+
+        [searchEl, categoryEl, entityEl, severityEl, departmentEl, statusEl].forEach((el) => {
+            const eventName = el.tagName === 'INPUT' ? 'input' : 'change';
+            el.addEventListener(eventName, applyFilters);
+        });
+
+        clearEl.addEventListener('click', () => {
+            searchEl.value = '';
+            categoryEl.value = 'all';
+            entityEl.value = 'all';
+            severityEl.value = 'all';
+            departmentEl.value = 'all';
+            statusEl.value = 'all';
+            applyFilters();
+        });
+
+        applyFilters();
     })();
 </script>
 

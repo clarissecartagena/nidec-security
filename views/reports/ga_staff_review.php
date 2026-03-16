@@ -20,17 +20,52 @@
 .ga-pending-card {
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid var(--border);
+    border: 1.5px solid rgba(148, 163, 184, 0.45);
     background: var(--card);
     border-radius: 12px;
     position: relative;
     overflow: hidden;
 }
 
+.ga-pending-card.ga-sev-low {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.32) 0%, rgba(52, 211, 153, 0.14) 52%, rgba(236, 253, 245, 0.96) 100%);
+    border-color: rgba(5, 150, 105, 0.72);
+}
+
+.ga-pending-card.ga-sev-medium {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.16) 0%, rgba(20, 184, 166, 0.05) 55%, rgba(255, 255, 255, 0.95) 100%);
+    border-color: rgba(13, 148, 136, 0.55);
+}
+
+.ga-pending-card.ga-sev-high {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.10) 55%, rgba(255, 255, 255, 0.95) 100%);
+    border-color: rgba(217, 119, 6, 0.7);
+}
+
+.ga-pending-card.ga-sev-critical {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.28) 0%, rgba(220, 38, 38, 0.10) 55%, rgba(255, 255, 255, 0.95) 100%);
+    border-color: rgba(185, 28, 28, 0.7);
+}
+
 .ga-pending-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
-    border-color: var(--accent);
+}
+
+.ga-pending-card.ga-sev-low:hover {
+    border-color: rgba(4, 120, 87, 0.84);
+}
+
+.ga-pending-card.ga-sev-medium:hover {
+    border-color: rgba(13, 148, 136, 0.55);
+}
+
+.ga-pending-card.ga-sev-high:hover {
+    border-color: rgba(217, 119, 6, 0.65);
+}
+
+.ga-pending-card.ga-sev-critical:hover {
+    border-color: rgba(185, 28, 28, 0.65);
 }
 
 .ga-pending-card .ga-meta {
@@ -87,6 +122,108 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.ga-pending-card .ga-bottom-row {
+    display: grid;
+    grid-template-columns: 7fr 3fr;
+    gap: 12px;
+    align-items: end;
+}
+
+.ga-pending-card .ga-actions .btn {
+    min-width: 96px;
+}
+
+.ga-pending-card .ga-divider {
+    height: 1px;
+    background: rgba(100, 116, 139, 0.32);
+    margin: 1rem 0;
+    width: 100%;
+}
+
+.ga-pending-card .badge--warning {
+    color: #6b4a00 !important;
+    font-weight: 700;
+}
+
+.ga-filter-wrap {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.ga-filter-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+    font-weight: 700;
+}
+
+.ga-filter-wrap .form-select,
+.ga-filter-wrap .form-control,
+.ga-filter-wrap .form-select-sm,
+.ga-filter-wrap .form-control-sm {
+    height: 38px;
+    min-height: 38px;
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+.ga-filter-actions-col {
+    display: flex;
+    align-items: flex-end;
+}
+
+#clear-filters {
+    height: 38px;
+    min-height: 38px;
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+    font-weight: 600;
+}
+
+#clear-filters:hover,
+#clear-filters:focus {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+    color: #fff;
+}
+
+.ga-filter-summary-right {
+    margin-top: 8px;
+    text-align: right;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+}
+
+.ga-btn-return {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+    color: #fff;
+}
+
+.ga-btn-return:hover,
+.ga-btn-return:focus {
+    background-color: #d97706;
+    border-color: #d97706;
+    color: #fff;
+}
+
+@media (max-width: 991.98px) {
+    .ga-pending-card .ga-bottom-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ga-pending-card .ga-actions {
+        justify-content: flex-start;
+    }
 }
 
 /* ==========================================================================
@@ -291,14 +428,50 @@
                 <h1 class="h4 fw-bold text-foreground mb-1"><i class="bi bi-eye-fill me-2 text-primary"></i>GA Staff Review</h1>
                 <p class="text-sm text-muted-foreground mb-0">Review and approve reports to send to GA President</p>
             </div>
-            <div class="d-flex align-items-center gap-2 align-self-end">
-                <span class="text-xs text-muted-foreground">Building</span>
-                <select id="building-filter" class="form-select form-select-sm" style="min-width: 160px;">
-                    <option value="all" <?php echo ($selectedBuilding ?? 'all') === 'all' ? 'selected' : ''; ?>>All</option>
-                    <option value="NCFL" <?php echo ($selectedBuilding ?? '') === 'NCFL' ? 'selected' : ''; ?>>NCFL</option>
-                    <option value="NPFL" <?php echo ($selectedBuilding ?? '') === 'NPFL' ? 'selected' : ''; ?>>NPFL</option>
-                </select>
+        </div>
+
+        <div class="ga-filter-wrap">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label for="search-filter" class="ga-filter-label mb-1">Search</label>
+                    <input id="search-filter" type="text" class="form-control form-control-sm" placeholder="Report no, subject, location...">
+                </div>
+                <div class="col-8 col-md-2">
+                    <label for="building-filter" class="ga-filter-label mb-1">Entity</label>
+                    <select id="building-filter" class="form-select form-select-sm">
+                        <option value="all" <?php echo ($selectedBuilding ?? 'all') === 'all' ? 'selected' : ''; ?>>All</option>
+                        <option value="NCFL" <?php echo ($selectedBuilding ?? '') === 'NCFL' ? 'selected' : ''; ?>>NCFL</option>
+                        <option value="NPFL" <?php echo ($selectedBuilding ?? '') === 'NPFL' ? 'selected' : ''; ?>>NPFL</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="severity-filter" class="ga-filter-label mb-1">Severity</label>
+                    <select id="severity-filter" class="form-select form-select-sm">
+                        <option value="all">All</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="department-filter" class="ga-filter-label mb-1">Department</label>
+                    <select id="department-filter" class="form-select form-select-sm">
+                        <option value="all">All</option>
+                        <?php foreach (($departments ?? []) as $departmentRow): ?>
+                            <?php $deptName = trim((string)($departmentRow['name'] ?? '')); ?>
+                            <?php if ($deptName === '') continue; ?>
+                            <option value="<?php echo htmlspecialchars(strtolower($deptName)); ?>"><?php echo htmlspecialchars($deptName); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 ga-filter-actions-col">
+                    <button id="clear-filters" type="button" class="btn btn-sm w-100">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </button>
+                </div>
             </div>
+            <div id="ga-filter-summary" class="ga-filter-summary-right">Showing all pending reports</div>
         </div>
 
         <?php if (!empty($flash)): ?>
@@ -315,15 +488,45 @@
             <?php foreach ($pending as $r): ?>
                 <?php
                 $sevRaw = strtolower((string)($r['severity'] ?? ''));
-                $sevBadge = ($sevRaw === 'critical') ? 'badge--destructive' : (($sevRaw === 'high') ? 'badge--warning' : 'badge--info');
+                $sevBadge = ($sevRaw === 'critical') ? 'badge--destructive' : (($sevRaw === 'high') ? 'badge--warning' : (($sevRaw === 'medium') ? 'badge--info' : 'badge--success'));
                 $reportNo = (string)($r['report_no'] ?? '');
                 
                 // Content summary logic
                 $details = trim((string)($r['details'] ?? ''));
                 $summary = (strlen($details) > 220) ? substr($details, 0, 220) . '…' : ($details ?: '—');
+
+                $severityClass = 'ga-sev-low';
+                if ($sevRaw === 'critical') $severityClass = 'ga-sev-critical';
+                elseif ($sevRaw === 'high') $severityClass = 'ga-sev-high';
+                elseif ($sevRaw === 'medium') $severityClass = 'ga-sev-medium';
+
+                $departmentName = (string)($r['department_name'] ?? '');
+                $entityName = trim((string)($r['building'] ?? ''));
+                if ($entityName === '') {
+                    $locationUpper = strtoupper((string)($r['location'] ?? ''));
+                    if (str_contains($locationUpper, 'NCFL')) {
+                        $entityName = 'NCFL';
+                    } elseif (str_contains($locationUpper, 'NPFL')) {
+                        $entityName = 'NPFL';
+                    }
+                }
+
+                $searchBlob = strtolower(trim(
+                    (string)($r['report_no'] ?? '') . ' ' .
+                    (string)($r['subject'] ?? '') . ' ' .
+                    (string)($r['category'] ?? '') . ' ' .
+                    (string)($r['location'] ?? '') . ' ' .
+                    $departmentName . ' ' .
+                    $entityName
+                ));
                 ?>
 
-                <div class="card shadow-sm mb-3 ga-pending-card" onclick="GaStaffReview.open('<?php echo htmlspecialchars($reportNo); ?>')">
+                <div class="card shadow-sm mb-3 ga-pending-card <?php echo $severityClass; ?>"
+                     data-severity="<?php echo htmlspecialchars($sevRaw !== '' ? $sevRaw : 'low'); ?>"
+                     data-entity="<?php echo htmlspecialchars(strtolower($entityName)); ?>"
+                     data-department="<?php echo htmlspecialchars(strtolower($departmentName)); ?>"
+                     data-search="<?php echo htmlspecialchars($searchBlob); ?>"
+                     onclick="GaStaffReview.open('<?php echo htmlspecialchars($reportNo); ?>')">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
                             <div>
@@ -335,14 +538,6 @@
                                 <div class="ga-title"><?php echo htmlspecialchars($r['subject'] ?? 'Untitled'); ?></div>
                             </div>
 
-                            <div class="ga-actions">
-                                <button type="button" class="btn btn-outline btn-sm" onclick="event.stopPropagation(); GaQuickAction.confirm('<?php echo htmlspecialchars($reportNo); ?>', 'return');">
-                                    <i class="bi bi-arrow-left me-1"></i> Return
-                                </button>
-                                <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); GaQuickAction.confirm('<?php echo htmlspecialchars($reportNo); ?>', 'forward');">
-                                    <i class="bi bi-send me-1"></i> Approve
-                                </button>
-                            </div>
                         </div>
 
                         <div class="row g-2 mt-2">
@@ -364,12 +559,27 @@
                             </div>
                         </div>
 
-                        <hr class="my-3" />
-                        <p class="ga-summary"><?php echo htmlspecialchars($summary); ?></p>
+                        <div class="ga-divider" aria-hidden="true"></div>
+                        <div class="ga-bottom-row">
+                            <p class="ga-summary mb-0"><?php echo htmlspecialchars($summary); ?></p>
+
+                            <div class="ga-actions">
+                                <button type="button" class="btn ga-btn-return btn-sm" onclick="event.stopPropagation(); GaQuickAction.confirm('<?php echo htmlspecialchars($reportNo); ?>', 'return');">
+                                    <i class="bi bi-arrow-left me-1"></i> Return
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); GaQuickAction.confirm('<?php echo htmlspecialchars($reportNo); ?>', 'forward');">
+                                    <i class="bi bi-send me-1"></i> Approve
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+
+        <div id="ga-empty-filter" class="card shadow-sm hidden">
+            <div class="card-body text-center text-muted-foreground py-5">No reports match the selected filters.</div>
+        </div>
     </div>
 </main>
 
@@ -702,17 +912,58 @@ const CustomConfirm = {
  */
 document.addEventListener('DOMContentLoaded', () => {
     GaStaffReview.init();
-    
-    // Handle Building Filter Redirect
-    const filter = document.getElementById('building-filter');
-    if (filter) {
-        filter.addEventListener('change', () => {
-            const val = filter.value;
-            const url = new URL(window.location.href);
-            if (val === 'all') url.searchParams.delete('building');
-            else url.searchParams.set('building', val);
-            window.location.href = url.toString();
+
+    const buildingEl = document.getElementById('building-filter');
+    const severityEl = document.getElementById('severity-filter');
+    const deptEl = document.getElementById('department-filter');
+    const searchEl = document.getElementById('search-filter');
+    const clearBtn = document.getElementById('clear-filters');
+    const summaryEl = document.getElementById('ga-filter-summary');
+    const emptyEl = document.getElementById('ga-empty-filter');
+    const cards = Array.from(document.querySelectorAll('.ga-pending-card'));
+
+    if (cards.length && buildingEl && severityEl && deptEl && searchEl && clearBtn && summaryEl && emptyEl) {
+        const applyFilters = () => {
+            const entity = buildingEl.value.toLowerCase();
+            const sev = severityEl.value;
+            const dept = deptEl.value;
+            const term = searchEl.value.trim().toLowerCase();
+            let visible = 0;
+
+            cards.forEach((card) => {
+                const cardEntity = card.getAttribute('data-entity') || '';
+                const cardSev = card.getAttribute('data-severity') || '';
+                const cardDept = card.getAttribute('data-department') || '';
+                const cardSearch = card.getAttribute('data-search') || '';
+
+                const matchEntity = entity === 'all' || cardEntity === entity;
+                const matchSev = sev === 'all' || cardSev === sev;
+                const matchDept = dept === 'all' || cardDept === dept;
+                const matchTerm = term === '' || cardSearch.includes(term);
+
+                const show = matchEntity && matchSev && matchDept && matchTerm;
+                card.style.display = show ? '' : 'none';
+                if (show) visible += 1;
+            });
+
+            emptyEl.classList.toggle('hidden', visible !== 0);
+            summaryEl.textContent = `Showing ${visible} pending report${visible === 1 ? '' : 's'}`;
+        };
+
+        buildingEl.addEventListener('change', applyFilters);
+        severityEl.addEventListener('change', applyFilters);
+        deptEl.addEventListener('change', applyFilters);
+        searchEl.addEventListener('input', applyFilters);
+
+        clearBtn.addEventListener('click', () => {
+            buildingEl.value = 'all';
+            severityEl.value = 'all';
+            deptEl.value = 'all';
+            searchEl.value = '';
+            applyFilters();
         });
+
+        applyFilters();
     }
 
     // Global ESC key to close modals
@@ -724,3 +975,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
