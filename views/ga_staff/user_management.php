@@ -1044,7 +1044,15 @@ function user_role_label(string $role): string {
 
             fetch(url, { credentials: 'same-origin' })
                 .then(r => {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    if (!r.ok) {
+                        return r.text().then(text => {
+                            let errMsg = 'Server error (HTTP ' + r.status + '). Please try again.';
+                            // Attempt to extract a descriptive error from a JSON response body.
+                            // If parsing fails we keep the generic fallback message above.
+                            try { const j = JSON.parse(text); if (j.error) errMsg = j.error; } catch (_) {}
+                            throw new Error(errMsg);
+                        });
+                    }
                     return r.json();
                 })
                 .then(data => {
@@ -1060,9 +1068,9 @@ function user_role_label(string $role): string {
                     }
                     this._renderResults(employees, !!data.using_mock);
                 })
-                .catch(() => {
+                .catch(err => {
                     this._setSearchLoading(false);
-                    this._showSearchAlert('Network error. Please check your connection and try again.');
+                    this._showSearchAlert((err && err.message) ? err.message : 'Network error. Please check your connection and try again.');
                 });
         },
 
