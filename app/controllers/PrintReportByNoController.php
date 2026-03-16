@@ -5,7 +5,7 @@ namespace App\Controllers;
 
 class PrintReportByNoController extends BaseController
 {
-    public function redirect(): void
+    public function handleRedirect(): void
     {
         require_once __DIR__ . '/../../includes/config.php';
 

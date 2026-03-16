@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/GaPresidentApprovalService.php';
 
 class GaPresidentApprovalController extends BaseController
 {
-    private GaPresidentApprovalService $service;
+    private \GaPresidentApprovalService $service;
 
-    public function __construct(?GaPresidentApprovalService $service = null)
+    public function __construct(?\GaPresidentApprovalService $service = null)
     {
-        $this->service = $service ?: new GaPresidentApprovalService();
+        $this->service = $service ?: new \GaPresidentApprovalService();
     }
 
     public function index(): void
@@ -49,6 +49,7 @@ class GaPresidentApprovalController extends BaseController
         $selectedBuilding = $buildingFilter ?? 'all';
 
         $pending = $this->service->getPendingList($buildingFilter);
+        $departments = function_exists('fetch_departments') ? fetch_departments() : [];
 
         require __DIR__ . '/../../views/reports/ga_president_approval.php';
     }

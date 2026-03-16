@@ -1,4 +1,4 @@
-﻿-- Seed data for local/dev testing -- 50 reports across all workflow stages.
+﻿-- Seed data for local/dev testing -- 56 reports across all workflow stages (includes 6 showcase demo reports).
 -- Safe to re-run (deletes all rows then reinserts).
 --
 -- Test password for ALL seeded users:  Password123!
@@ -80,11 +80,11 @@ INSERT INTO departments (id, name, is_active, created_at) VALUES
 --   300553  = Karen F. Enriquez   (ga_president)
 --   401157  = Liza Acosta         (ga_staff)
 --   1200385 = Cherry Buenconsejo  (ga_staff)
---   4       = Ana Mendoza         (department, Facilities)
---   5       = Carlos Bautista     (department, IT)
---   6       = Elena Cruz          (department, HR)
---   7       = Roberto Villanueva  (department, Operations)
---   8       = Maricel Torres      (department, QA)
+--   4       = Ana Mendoza         (department, dept_id 1: Quality Assurance)
+--   5       = Carlos Bautista     (department, dept_id 2: Engineering Component)
+--   6       = Elena Cruz          (department, dept_id 3: Production Component)
+--   7       = Roberto Villanueva  (department, dept_id 4: Engineering Module)
+--   8       = Maricel Torres      (department, dept_id 5: L Office-Maint)
 --   8810183 = Benjamin Esteban    (security, NCFL External)
 --   8810305 = Efren Corrales      (security, NCFL Internal)
 --   8810279 = Christian Provido   (security, NPFL Internal)
@@ -111,7 +111,7 @@ INSERT INTO users (id, employee_no, name, username, password_hash, role, departm
   (8810222, 'j.ruazol',   'Jayson Ruazol',       'j.ruazol',   @PWD, 'security', NULL, 'external', 'NPFL', 'active', 'ga_staff', 401157, '2026-01-15 09:33:00');
 
 -- ==================================================================
--- REPORTS  (50 rows)
+-- REPORTS  (56 rows)
 -- submitted_by ID reference map (security users):
 --   8810305 = Efren Corrales   (NCFL Internal)
 --   8810183 = Benjamin Esteban (NCFL External)
@@ -571,3 +571,94 @@ INSERT INTO notifications (user_id, report_id, message, is_read, created_at) VAL
   -- Security notified of approval
   (8810305, 9,  'Report Approved by GA President. Assigned to Department for Resolution', 1, '2026-02-25 15:01:00'),
   (8810305, 10, 'Report Approved by GA President. Assigned to Department for Resolution', 1, '2026-02-25 15:01:00');
+
+-- ==================================================================
+-- SHOWCASE DEMO REPORTS (6 rows)
+-- Purpose: quick demo dataset for supervisor presentation
+--   • 3 reports tagged to NCFL
+--   • 3 reports tagged to NPFL
+--   • uses canonical department IDs from current department list
+-- ==================================================================
+INSERT INTO reports (
+  id, report_no, subject, category, location, severity, building, responsible_department_id,
+  details, actions_taken, remarks,
+  submitted_by, submitted_at, current_reviewer,
+  fix_due_date, resolved_by_security, resolved_at,
+  returned_by_security, returned_at, security_remarks,
+  reopen_count, status, updated_at
+) VALUES
+  (51, 'SR-2026-0051', 'NCFL Demo - Access Gate Delay',    'Access Control', 'NCFL Gate 1',                'medium',   'NCFL',  1,
+   'Demo sample: visitor gate turnaround exceeded standard due to badge scanner lag.',
+   'Guard performed manual verification while scanner was rebooted.',
+   'Presentation sample report for NCFL flow.',
+   8810305, '2026-03-10 08:15:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 08:15:00'),
+
+  (52, 'SR-2026-0052', 'NCFL Demo - Loading Bay Obstruction', 'Workplace Safety', 'NCFL Loading Bay A',     'high',     'NCFL', 14,
+   'Demo sample: material pallet blocked safety lane at loading bay entrance.',
+   'Area isolated and obstruction moved to marked staging point.',
+   'Presentation sample report for NCFL production area.',
+   8810183, '2026-03-10 09:40:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 09:40:00'),
+
+  (53, 'SR-2026-0053', 'NCFL Demo - QA Storage Label Issue', 'Compliance', 'NCFL QA Storage Room',        'low',      'NCFL', 15,
+   'Demo sample: QA storage labels were outdated, causing stock mismatch during audit.',
+   'Labels reprinted and temporary log sheet issued.',
+   'Presentation sample report for QA process control.',
+   8810305, '2026-03-10 11:05:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 11:05:00'),
+
+  (54, 'SR-2026-0054', 'NPFL Demo - Perimeter Lighting Gap', 'Surveillance', 'NPFL Perimeter West',       'medium',   'NPFL', 16,
+   'Demo sample: dark section on perimeter reduced camera clarity during night rounds.',
+   'Temporary mobile light tower deployed for patrol hours.',
+   'Presentation sample report for NPFL perimeter controls.',
+   8810222, '2026-03-10 12:20:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 12:20:00'),
+
+  (55, 'SR-2026-0055', 'NPFL Demo - Purchasing Dock Queue', 'Access Control', 'NPFL Purchasing Dock',     'low',      'NPFL', 9,
+   'Demo sample: receiving queue caused supplier trucks to idle in restricted lane.',
+   'Marshalling cone lane set up and guard assisted re-routing.',
+   'Presentation sample report for purchasing logistics.',
+   8810279, '2026-03-10 13:35:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 13:35:00'),
+
+  (56, 'SR-2026-0056', 'NPFL Demo - Engineering Module Alarm Test', 'Fire Safety', 'NPFL Engineering Module', 'medium', 'NPFL', 4,
+   'Demo sample: scheduled fire alarm test flagged delayed response on zone siren 3.',
+   'Technician acknowledged issue and initiated panel diagnostics.',
+   'Presentation sample report for engineering module.',
+   8810222, '2026-03-10 15:00:00', 'ga_staff',
+   NULL, NULL, NULL,
+   NULL, NULL, NULL,
+   0, 'submitted_to_ga_staff', '2026-03-10 15:00:00');
+
+INSERT INTO report_status_history (report_id, status, changed_by, notes, changed_at) VALUES
+  (51, 'submitted_to_ga_staff', 8810305, 'Showcase demo report submitted by Security.', '2026-03-10 08:15:00'),
+  (52, 'submitted_to_ga_staff', 8810183, 'Showcase demo report submitted by Security.', '2026-03-10 09:40:00'),
+  (53, 'submitted_to_ga_staff', 8810305, 'Showcase demo report submitted by Security.', '2026-03-10 11:05:00'),
+  (54, 'submitted_to_ga_staff', 8810222, 'Showcase demo report submitted by Security.', '2026-03-10 12:20:00'),
+  (55, 'submitted_to_ga_staff', 8810279, 'Showcase demo report submitted by Security.', '2026-03-10 13:35:00'),
+  (56, 'submitted_to_ga_staff', 8810222, 'Showcase demo report submitted by Security.', '2026-03-10 15:00:00');
+
+INSERT INTO notifications (user_id, report_id, message, is_read, created_at) VALUES
+  (401157,  51, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 08:16:00'),
+  (1200385, 51, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 08:16:00'),
+  (401157,  52, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 09:41:00'),
+  (1200385, 52, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 09:41:00'),
+  (401157,  53, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 11:06:00'),
+  (1200385, 53, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 11:06:00'),
+  (401157,  54, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 12:21:00'),
+  (1200385, 54, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 12:21:00'),
+  (401157,  55, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 13:36:00'),
+  (1200385, 55, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 13:36:00'),
+  (401157,  56, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 15:01:00'),
+  (1200385, 56, 'New Report Submitted and Waiting for Review', 0, '2026-03-10 15:01:00');

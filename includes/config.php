@@ -1,6 +1,15 @@
 <?php
 // Check if user is logged in
 if (session_status() === PHP_SESSION_NONE) {
+    // Guard: if the session path was already set by index.php, respect it;
+    // otherwise default to the same writable project directory.
+    if (session_save_path() === '' || session_save_path() === ini_get('session.save_path')) {
+        $_cfgSessionPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+        if (!is_dir($_cfgSessionPath)) {
+            mkdir($_cfgSessionPath, 0755, true);
+        }
+        session_save_path($_cfgSessionPath);
+    }
     session_start();
 }
 

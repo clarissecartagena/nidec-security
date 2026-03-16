@@ -15,7 +15,7 @@ class StatisticsController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'ga_president') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

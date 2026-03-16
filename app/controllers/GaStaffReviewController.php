@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/GaStaffReviewService.php';
 
 class GaStaffReviewController extends BaseController
 {
-    private GaStaffReviewService $service;
+    private \GaStaffReviewService $service;
 
-    public function __construct(?GaStaffReviewService $service = null)
+    public function __construct(?\GaStaffReviewService $service = null)
     {
-        $this->service = $service ?: new GaStaffReviewService();
+        $this->service = $service ?: new \GaStaffReviewService();
     }
 
     public function index(): void
@@ -49,6 +49,7 @@ class GaStaffReviewController extends BaseController
         $selectedBuilding = $buildingFilter ?? 'all';
 
         $pending = $this->service->getPendingList($buildingFilter);
+        $departments = function_exists('fetch_departments') ? fetch_departments() : [];
 
         require __DIR__ . '/../../views/reports/ga_staff_review.php';
     }

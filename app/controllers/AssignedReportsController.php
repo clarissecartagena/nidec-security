@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/AssignedReportsService.php';
 
 class AssignedReportsController extends BaseController
 {
-    private AssignedReportsService $service;
+    private \AssignedReportsService $service;
 
-    public function __construct(?AssignedReportsService $service = null)
+    public function __construct(?\AssignedReportsService $service = null)
     {
-        $this->service = $service ?: new AssignedReportsService();
+        $this->service = $service ?: new \AssignedReportsService();
     }
 
     public function index(): void
@@ -24,7 +24,7 @@ class AssignedReportsController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'department') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

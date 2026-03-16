@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/FinalCheckingService.php';
 
 class FinalCheckingController extends BaseController
 {
-    private FinalCheckingService $service;
+    private \FinalCheckingService $service;
 
-    public function __construct(?FinalCheckingService $service = null)
+    public function __construct(?\FinalCheckingService $service = null)
     {
-        $this->service = $service ?: new FinalCheckingService();
+        $this->service = $service ?: new \FinalCheckingService();
     }
 
     public function index(): void
@@ -27,7 +27,7 @@ class FinalCheckingController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'security') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

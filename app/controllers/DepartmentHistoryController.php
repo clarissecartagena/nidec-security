@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/DepartmentHistoryService.php';
 
 class DepartmentHistoryController extends BaseController
 {
-    private DepartmentHistoryService $service;
+    private \DepartmentHistoryService $service;
 
-    public function __construct(?DepartmentHistoryService $service = null)
+    public function __construct(?\DepartmentHistoryService $service = null)
     {
-        $this->service = $service ?: new DepartmentHistoryService();
+        $this->service = $service ?: new \DepartmentHistoryService();
     }
 
     public function index(): void
@@ -24,7 +24,7 @@ class DepartmentHistoryController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'department') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

@@ -96,3 +96,13 @@ if (!defined('API_ENV')) {
     define('API_ENV', in_array($appEnv, ['production', 'prod'], true) ? 'production' : 'development');
     unset($appEnv);
 }
+
+// ── Cross-system Reports Sync API ─────────────────────────────────────────
+
+if (!defined('REPORTS_SYNC_API_KEY')) {
+    // Shared key used by /public/api/reports_sync.php and PDF sync access.
+    // Set APP_REPORTS_SYNC_API_KEY in server environment for production.
+    $syncKey = (string)(getenv('APP_REPORTS_SYNC_API_KEY') ?: 'nidec-sync-demo-key');
+    define('REPORTS_SYNC_API_KEY', $syncKey);
+    unset($syncKey);
+}

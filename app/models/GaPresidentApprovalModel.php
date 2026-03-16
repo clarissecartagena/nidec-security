@@ -16,6 +16,7 @@ class GaPresidentApprovalModel
     public function getPendingReports(?string $buildingFilter): array
     {
         $sql = "SELECT r.report_no, r.subject, r.category, r.severity, r.submitted_at,
+                   r.building,
                        r.location, r.details,
                        d.name AS department_name,
                        u.name AS ga_staff_reviewer

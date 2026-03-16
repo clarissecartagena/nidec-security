@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/SubmitReportService.php';
 
 class SubmitReportController extends BaseController
 {
-    private SubmitReportService $service;
+    private \SubmitReportService $service;
 
-    public function __construct(?SubmitReportService $service = null)
+    public function __construct(?\SubmitReportService $service = null)
     {
-        $this->service = $service ?: new SubmitReportService();
+        $this->service = $service ?: new \SubmitReportService();
     }
 
     public function index(): void
@@ -28,7 +28,7 @@ class SubmitReportController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'security') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

@@ -1,7 +1,58 @@
 <?php
 
+function canonical_departments(): array {
+    static $cached = null;
+    if (is_array($cached)) {
+        return $cached;
+    }
+
+    $constantsPath = __DIR__ . '/../config/constants.php';
+    $departments = [];
+
+    if (is_file($constantsPath)) {
+        require $constantsPath;
+        if (isset($departments) && is_array($departments)) {
+            $departments = array_values(array_filter(array_map(
+                static fn($d) => trim((string)$d),
+                $departments
+            ), static fn($d) => $d !== ''));
+        } else {
+            $departments = [];
+        }
+    }
+
+    $cached = $departments;
+    return $cached;
+}
+
 function fetch_departments(): array {
-    return db_fetch_all('SELECT id, name FROM departments WHERE is_active = 1 ORDER BY name');
+    $canonical = canonical_departments();
+
+    if (empty($canonical)) {
+        return db_fetch_all('SELECT id, name FROM departments WHERE is_active = 1 ORDER BY name');
+    }
+
+    foreach ($canonical as $departmentName) {
+        db_execute(
+            'INSERT INTO departments (name, is_active, created_at) VALUES (?, 1, NOW()) ON DUPLICATE KEY UPDATE is_active = 1',
+            '',
+            [$departmentName]
+        );
+    }
+
+    $placeholders = implode(',', array_fill(0, count($canonical), '?'));
+    $orderByField = implode(',', array_fill(0, count($canonical), '?'));
+    $params = array_merge($canonical, $canonical);
+
+    return db_fetch_all(
+        "SELECT id, name
+         FROM departments
+         WHERE is_active = 1
+           AND name IN ($placeholders)
+         ORDER BY FIELD(name, $orderByField)",
+        '',
+        $params
+    );
 }
 
 // Centralized status mapping (DB enum + display label + expected reviewer)

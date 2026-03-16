@@ -17,7 +17,7 @@ class ReportsModel
 
     public function getReportsPage(?string $buildingFilter, int $limit, int $offset): array
     {
-        $sql = "SELECT r.report_no, r.subject, r.category, r.severity, r.status, r.submitted_at, d.name AS department_name
+        $sql = "SELECT r.report_no, r.subject, r.category, r.building, r.severity, r.status, r.submitted_at, d.name AS department_name
                 FROM reports r
                 JOIN departments d ON d.id = r.responsible_department_id";
         $params = [];

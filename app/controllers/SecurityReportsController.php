@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/SecurityReportsService.php';
 
 class SecurityReportsController extends BaseController
 {
-    private SecurityReportsService $service;
+    private \SecurityReportsService $service;
 
-    public function __construct(?SecurityReportsService $service = null)
+    public function __construct(?\SecurityReportsService $service = null)
     {
-        $this->service = $service ?: new SecurityReportsService();
+        $this->service = $service ?: new \SecurityReportsService();
     }
 
     public function index(): void
@@ -24,7 +24,7 @@ class SecurityReportsController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'security') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 

@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/ReportsService.php';
 
 class ReportsController extends BaseController
 {
-    private ReportsService $service;
+    private \ReportsService $service;
 
-    public function __construct(?ReportsService $service = null)
+    public function __construct(?\ReportsService $service = null)
     {
-        $this->service = $service ?: new ReportsService();
+        $this->service = $service ?: new \ReportsService();
     }
 
     public function index(): void
@@ -35,6 +35,7 @@ class ReportsController extends BaseController
         $totalReports = $data['totalReports'];
         $totalPages = $data['totalPages'];
         $offset = $data['offset'];
+        $departmentsDb = fetch_departments();
 
         require __DIR__ . '/../../views/reports/reports.php';
     }

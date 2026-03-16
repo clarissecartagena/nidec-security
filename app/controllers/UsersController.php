@@ -7,11 +7,11 @@ require_once __DIR__ . '/../services/UsersService.php';
 
 class UsersController extends BaseController
 {
-    private UsersService $service;
+    private \UsersService $service;
 
-    public function __construct(?UsersService $service = null)
+    public function __construct(?\UsersService $service = null)
     {
-        $this->service = $service ?: new UsersService();
+        $this->service = $service ?: new \UsersService();
     }
 
     public function index(): void
@@ -24,7 +24,7 @@ class UsersController extends BaseController
 
         $currentUser = getUser();
         if (!isAuthenticated() || ($currentUser['role'] ?? '') !== 'ga_president') {
-            header('Location: login.php');
+            header('Location: ' . app_url('login.php'));
             exit;
         }
 
