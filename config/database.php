@@ -24,7 +24,7 @@ function db(): PDO {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
     } catch (Throwable $e) {
-        throw new RuntimeException('Database connection failed. Please check your database configuration.');
+        throw new RuntimeException('Database connection failed. Please check your database configuration.', 0, $e);
     }
 
     return $pdo;
