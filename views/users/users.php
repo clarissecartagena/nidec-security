@@ -895,10 +895,33 @@ function getUserStatusBadge($status) {
         usernameField.value = String(emp.employee_id).toLowerCase();
       }
 
+      // Auto-detect and pre-select role from employee API data so the correct
+      // conditional fields (security_type, department) are immediately visible.
+      const detectedRole = this._detectEmployeeRole(emp);
+      const roleEl = document.getElementById('add-role');
+      if (roleEl && detectedRole) {
+        roleEl.value = detectedRole;
+      }
+
       const stepSearch = document.getElementById('add-step-search');
       const stepForm   = document.getElementById('add-step-form');
       if (stepSearch) stepSearch.classList.add('hidden');
       if (stepForm)   stepForm.classList.remove('hidden');
+      this.syncConditionalFields('add');
+    },
+
+    /**
+     * Mirror the server-side EmployeeService::detectRoleFromEmployee() logic.
+     * Returns 'ga_staff' | 'security' | 'department' | null.
+     */
+    _detectEmployeeRole(emp) {
+      const section  = (emp.section   || '').trim().toLowerCase();
+      const jobLevel = (emp.job_level || '').trim().toLowerCase();
+      if (section === 'human resource, ga and compliance') return 'ga_staff';
+      if (jobLevel === 'security')       return 'security';
+      if (jobLevel === 'segurity guard') return 'security'; // matches the typo in the company HR system (SEGURITY not SECURITY)
+      if (jobLevel === 'support/pic')    return 'department';
+      return null;
     },
 
     _setSearchLoading(loading) {

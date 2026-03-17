@@ -34,9 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_validate($token)) {
         $flash = 'Security check failed. Please refresh and try again.';
         $flashType = 'error';
-    } elseif (!$auditOk) {
-        $flash = 'Database is missing required audit columns. Run the latest migration/schema update first.';
-        $flashType = 'error';
     } else {
         try {
             if ($action === 'add') {
@@ -110,24 +107,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                db_execute(
-                    "INSERT INTO users
-                         (employee_no, name, email, position, department, username, password_hash,
-                          role, department_id, security_type, entity, account_status,
-                          created_by_role, created_by_employee_no)
-                     VALUES
-                         (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
-                          ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
-                          'ga_staff', ?)",
-                    '',
-                    [
-                        $emp['employee_id'], $emp['fullname'],
-                        $emp['email'],       $emp['position'],
-                        $emp['department'],  $username,  $hash,
-                        $role, $departmentId, $securityType, $entity, $accountStatus,
-                        $currentUserEmployeeNo,
-                    ]
-                );
+                if ($auditOk) {
+                    db_execute(
+                        "INSERT INTO users
+                             (employee_no, name, email, position, department, username, password_hash,
+                              role, department_id, security_type, entity, account_status,
+                              created_by_role, created_by_employee_no)
+                         VALUES
+                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
+                              ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
+                              'ga_staff', ?)",
+                        '',
+                        [
+                            $emp['employee_id'], $emp['fullname'],
+                            $emp['email'],       $emp['position'],
+                            $emp['department'],  $username,  $hash,
+                            $role, $departmentId, $securityType, $entity, $accountStatus,
+                            $currentUserEmployeeNo,
+                        ]
+                    );
+                } else {
+                    db_execute(
+                        "INSERT INTO users
+                             (employee_no, name, email, position, department, username, password_hash,
+                              role, department_id, security_type, entity, account_status)
+                         VALUES
+                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
+                              ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?)",
+                        '',
+                        [
+                            $emp['employee_id'], $emp['fullname'],
+                            $emp['email'],       $emp['position'],
+                            $emp['department'],  $username,  $hash,
+                            $role, $departmentId, $securityType, $entity, $accountStatus,
+                        ]
+                    );
+                }
 
                 $flash = 'User added successfully.';
             } elseif ($action === 'update') {
@@ -1098,6 +1113,29 @@ function user_role_label(string $role): string {
             const stepForm   = document.getElementById('add-step-form');
             if (stepSearch) stepSearch.classList.add('hidden');
             if (stepForm)   stepForm.classList.remove('hidden');
+
+            // Auto-detect and pre-select role from employee API data so the correct
+            // conditional fields (security_type, department) are immediately visible.
+            const detectedRole = this._detectEmployeeRole(emp);
+            const roleEl = document.getElementById('add-role');
+            if (roleEl && detectedRole) {
+                roleEl.value = detectedRole;
+            }
+            this.syncConditionalFields('add');
+        },
+
+        /**
+         * Mirror the server-side EmployeeService::detectRoleFromEmployee() logic.
+         * Returns 'ga_staff' | 'security' | 'department' | null.
+         */
+        _detectEmployeeRole(emp) {
+            const section  = (emp.section   || '').trim().toLowerCase();
+            const jobLevel = (emp.job_level || '').trim().toLowerCase();
+            if (section === 'human resource, ga and compliance') return 'ga_staff';
+            if (jobLevel === 'security')       return 'security';
+            if (jobLevel === 'segurity guard') return 'security'; // matches the typo in the company HR system (SEGURITY not SECURITY)
+            if (jobLevel === 'support/pic')    return 'department';
+            return null;
         },
 
         _setSearchLoading(loading) {
