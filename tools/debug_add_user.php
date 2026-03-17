@@ -5,20 +5,18 @@
  * Diagnoses exactly why an employee can or cannot be found / added through
  * the web UI's "Add New User" modal.
  *
- * Usage:
- *   php tools/debug_add_user.php <employee_id>
+ * TWO MODES
+ * ─────────
+ * No argument  — Full system diagnostic: API connectivity, sample search,
+ *                database connection, list of existing users.  Run this
+ *                FIRST so you can see which employee IDs exist in the API.
  *
- * Example:
+ *   php tools/debug_add_user.php
+ *
+ * With employee_id — Deep-dive on one employee: exact API lookup, role
+ *                    detection field-by-field, duplicate account check.
+ *
  *   php tools/debug_add_user.php 300553
- *
- * What it checks:
- *   1. API connectivity (same check as provision_allowed_users.php).
- *   2. getEmployee()  – exact ID lookup (same call as when the form submits).
- *   3. Role detection – shows every field the API returned and whether it
- *      matches the expected role-detection values.
- *   4. Free-text search – simulates typing the employee ID into the search
- *      box so you can see whether q= returns anything.
- *   5. Database      – whether a local account already exists.
  *
  * ──────────────────────────────────────────────────────────────────────────
  */
@@ -30,19 +28,9 @@ require_once SCRIPT_ROOT . '/config/api.php';
 require_once SCRIPT_ROOT . '/app/api_clients/EmployeeApiClient.php';
 require_once SCRIPT_ROOT . '/app/services/EmployeeService.php';
 
-// ── Args ───────────────────────────────────────────────────────────────────
-
-$employeeId = trim((string)($argv[1] ?? ''));
-
-if ($employeeId === '') {
-    echo "Usage: php tools/debug_add_user.php <employee_id>\n";
-    echo "Example: php tools/debug_add_user.php 300553\n";
-    exit(1);
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function line(string $char = '─', int $width = 68): void
+function hr(string $char = '─', int $width = 68): void
 {
     echo str_repeat($char, $width) . "\n";
 }
@@ -52,18 +40,175 @@ function fail(string $msg): void { echo "  [FAIL] {$msg}\n"; }
 function warn(string $msg): void { echo "  [WARN] {$msg}\n"; }
 function info(string $msg): void { echo "  [INFO] {$msg}\n"; }
 
+// ── Args ───────────────────────────────────────────────────────────────────
+
+$employeeId = trim((string)($argv[1] ?? ''));
+
 // ── Banner ─────────────────────────────────────────────────────────────────
 
 $service = new EmployeeService();
 
-line('=');
+hr('=');
 echo " Add-User Debug Tool\n";
-line('=');
-printf(" %-14s : %s\n", 'Employee ID',  $employeeId);
-printf(" %-14s : %s\n", 'API endpoint', $service->getApiBaseUrl());
-printf(" %-14s : %s\n", 'Using mock',   $service->isUsingMock() ? 'YES (local mock server)' : 'NO (company API)');
-line('=');
+hr('=');
+printf(" %-16s : %s\n", 'Mode',         $employeeId !== '' ? "Single employee ({$employeeId})" : 'System diagnostic');
+printf(" %-16s : %s\n", 'API endpoint', $service->getApiBaseUrl());
+printf(" %-16s : %s\n", 'Using mock',   $service->isUsingMock() ? 'YES (local mock server)' : 'NO (company API)');
+printf(" %-16s : %s\n", 'API_ENV',      API_ENV);
+hr('=');
 echo "\n";
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODE A — No argument: full system diagnostic
+// ══════════════════════════════════════════════════════════════════════════
+
+if ($employeeId === '') {
+
+    // ── A1: Database connectivity ──────────────────────────────────────────
+    echo "Check 1 — Database connection\n";
+    hr();
+
+    $dbOk = false;
+    try {
+        db(); // triggers connection
+        pass("Database connected  (host=" . DB_HOST . "  db=" . DB_NAME . ").");
+        $dbOk = true;
+    } catch (Throwable $ex) {
+        fail("Database connection FAILED: " . $ex->getMessage());
+        echo "\n  ► Check config/database.php — DB_HOST, DB_NAME, DB_USER, DB_PASS.\n";
+        echo "    Make sure MySQL / XAMPP is running.\n";
+    }
+    echo "\n";
+
+    // ── A2: Users already in the database ─────────────────────────────────
+    echo "Check 2 — Existing user accounts in the database\n";
+    hr();
+
+    if ($dbOk) {
+        try {
+            $users = db_fetch_all(
+                'SELECT id, username, employee_no, role, account_status FROM users ORDER BY id LIMIT 20'
+            );
+            if (empty($users)) {
+                warn("No user accounts exist in the database yet.");
+                echo "    ► This is normal for a fresh install.\n";
+            } else {
+                pass(count($users) . " account(s) found:");
+                printf("    %-6s  %-20s  %-12s  %-16s  %s\n",
+                    'ID', 'Username', 'Employee No', 'Role', 'Status');
+                echo "    " . str_repeat('-', 70) . "\n";
+                foreach ($users as $u) {
+                    printf("    %-6s  %-20s  %-12s  %-16s  %s\n",
+                        $u['id'],
+                        $u['username'],
+                        $u['employee_no'] ?? '(none)',
+                        $u['role'],
+                        $u['account_status']);
+                }
+            }
+        } catch (Throwable $ex) {
+            warn("Could not query users table: " . $ex->getMessage());
+        }
+    } else {
+        warn("Skipping — database is not connected.");
+    }
+    echo "\n";
+
+    // ── A3: API connectivity ───────────────────────────────────────────────
+    echo "Check 3 — Employee API connectivity\n";
+    hr();
+
+    // Try a broad single-letter search to get some real employee records.
+    $sampleSearches = ['an', 'en', 'sa', 'na', 'jo', 'ma'];
+    $apiEmployees   = [];
+    $apiError       = null;
+
+    foreach ($sampleSearches as $letter) {
+        $res = $service->search($letter);
+        if ($res['success'] && !empty($res['employees'])) {
+            $apiEmployees = $res['employees'];
+            pass("API search for \"{$letter}\" returned " . count($apiEmployees) . " employee(s).");
+            break;
+        }
+        $apiError = $res['error'] ?? 'No results';
+    }
+
+    if (empty($apiEmployees)) {
+        fail("API returned no employees for any test query.");
+        echo "\n  Last error : " . ($apiError ?? 'Unknown') . "\n";
+        echo "\n  Possible causes:\n";
+        if ($service->isUsingMock()) {
+            echo "    • The mock server at " . $service->getApiBaseUrl() . " is not running.\n";
+            echo "      Start XAMPP and make sure nidec_api_mock is in your htdocs folder.\n";
+        } else {
+            echo "    • The company Employee API at " . $service->getApiBaseUrl() . " is unreachable.\n";
+            echo "      Check that you are on the company VPN / internal network.\n";
+        }
+        echo "    • config/api.php has a wrong endpoint URL.\n";
+    }
+    echo "\n";
+
+    // ── A4: List employees returned by the API ─────────────────────────────
+    if (!empty($apiEmployees)) {
+        echo "Check 4 — Employees visible in the API  (role eligibility)\n";
+        hr();
+        echo "  The following employees were returned. The [ROLE] column shows\n";
+        echo "  whether each one can be added via the web UI.\n\n";
+
+        printf("  %-12s  %-28s  %-12s  %s\n", 'Employee ID', 'Name', 'Role', 'Job Level / Section');
+        echo "  " . str_repeat('-', 80) . "\n";
+
+        foreach ($apiEmployees as $e) {
+            $det = EmployeeService::detectRoleFromEmployee($e);
+            $roleLabel = $det !== null
+                ? $det['role'] . ($det['entity'] !== '' ? '/' . $det['entity'] : '')
+                : '-- NOT ELIGIBLE --';
+            $extra = $e['job_level'] !== '' ? $e['job_level'] : $e['section'];
+            printf("  %-12s  %-28s  %-12s  %s\n",
+                $e['employee_id'] ?? '?',
+                mb_substr($e['fullname'] ?? '?', 0, 28),
+                $roleLabel,
+                mb_substr($extra, 0, 30));
+        }
+
+        echo "\n";
+        echo "  ► To diagnose a specific employee, run:\n";
+        echo "      php tools/debug_add_user.php EMPLOYEE_ID\n";
+        $firstId = $apiEmployees[0]['employee_id'] ?? '';
+        if ($firstId !== '') {
+            echo "    Example (first employee returned above):\n";
+            echo "      php tools/debug_add_user.php {$firstId}\n";
+        }
+    } elseif (empty($apiEmployees)) {
+        // Already reported the failure in Check 3; skip the table.
+        echo "Check 4 — Skipped (API not reachable).\n";
+    }
+    echo "\n";
+
+    // ── A5: Role detection constants ───────────────────────────────────────
+    echo "Check 5 — Role detection constants (from app/services/EmployeeService.php)\n";
+    hr();
+    echo "  For an employee to appear in the Add User search, their HR data must\n";
+    echo "  match one of these values exactly (case-insensitive):\n\n";
+    printf("  %-18s : employee_id === \"%s\"\n",  'ga_president',    GA_PRESIDENT_EMPLOYEE_NO);
+    printf("  %-18s : section     === \"%s\"\n",  'ga_staff',        GA_STAFF_SECTION);
+    printf("  %-18s : job_level   === \"%s\"\n",  'security (NCFL)', SECURITY_JOB_LEVEL_NCFL);
+    printf("  %-18s : job_level   === \"%s\"\n",  'security (NPFL)', SECURITY_JOB_LEVEL_NPFL);
+    printf("  %-18s : job_level   === \"%s\"\n",  'department',      DEPARTMENT_JOB_LEVEL);
+    echo "\n";
+
+    hr('=');
+    echo " System diagnostic complete.\n";
+    echo " Next step: run  php tools/debug_add_user.php EMPLOYEE_ID  to\n";
+    echo " check why a specific employee cannot be added.\n";
+    hr('=');
+    echo "\n";
+    exit(0);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODE B — Employee ID provided: deep-dive on one employee
+// ══════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────
 // Step 1 — Exact lookup (employee_id=)
@@ -73,7 +218,7 @@ echo "\n";
 // ─────────────────────────────────────────────────────────────────────────
 
 echo "Step 1 — Exact lookup: getEmployee('{$employeeId}')\n";
-line();
+hr();
 
 $result = $service->getEmployee($employeeId);
 
@@ -86,6 +231,8 @@ if (!$result['success'] || $result['employee'] === null) {
     echo "    • Employee ID does not exist in the company HR system.\n";
     echo "    • Company API is unreachable (check VPN / network).\n";
     echo "    • API endpoint URL is wrong  — check config/api.php.\n";
+    echo "    • Run without an argument first to see all available employee IDs:\n";
+    echo "        php tools/debug_add_user.php\n";
     echo "\n";
     exit(1);
 }
@@ -105,7 +252,7 @@ echo "\n";
 // ─────────────────────────────────────────────────────────────────────────
 
 echo "Step 2 — Role detection\n";
-line();
+hr();
 
 $detected = EmployeeService::detectRoleFromEmployee($emp);
 
@@ -140,12 +287,12 @@ if ($detected === null) {
     echo "              at the top of that file if needed.\n";
     echo "\n";
 
-    // Check character-level differences for the closest match
+    // Check character-level differences for the closest match.
     foreach ([
-        'section (ga_staff check)'    => [$empSection, GA_STAFF_SECTION],
-        'job_level (Security NCFL)'   => [$empJobLvl,  SECURITY_JOB_LEVEL_NCFL],
-        'job_level (Security NPFL)'   => [$empJobLvl,  SECURITY_JOB_LEVEL_NPFL],
-        'job_level (Department)'      => [$empJobLvl,  DEPARTMENT_JOB_LEVEL],
+        'section (ga_staff check)'  => [$empSection, GA_STAFF_SECTION],
+        'job_level (Security NCFL)' => [$empJobLvl,  SECURITY_JOB_LEVEL_NCFL],
+        'job_level (Security NPFL)' => [$empJobLvl,  SECURITY_JOB_LEVEL_NPFL],
+        'job_level (Department)'    => [$empJobLvl,  DEPARTMENT_JOB_LEVEL],
     ] as $label => [$actual, $expected]) {
         if ($actual === '' || $expected === '') continue;
         $similarity = 0;
@@ -165,12 +312,12 @@ echo "\n";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Step 3 — Free-text search (q=)
-// This simulates what the web UI sends when the user types the employee ID
-// into the search box WITHOUT the numeric-ID detection fix applied.
+// Simulates what the web UI sends when the user types the employee ID into
+// the search box and the browser uses ?q= instead of ?employee_id=.
 // ─────────────────────────────────────────────────────────────────────────
 
 echo "Step 3 — Free-text search: search('{$employeeId}')\n";
-line();
+hr();
 
 $searchResult = $service->search($employeeId);
 
@@ -195,7 +342,7 @@ echo "\n";
 // ─────────────────────────────────────────────────────────────────────────
 
 echo "Step 4 — Database account check\n";
-line();
+hr();
 
 try {
     $row = db_fetch_one(
@@ -206,9 +353,9 @@ try {
 
     if ($row) {
         warn("An account already exists for this employee.");
-        printf("  %-15s : %s\n", 'username',       $row['username']);
-        printf("  %-15s : %s\n", 'role',            $row['role']);
-        printf("  %-15s : %s\n", 'account_status',  $row['account_status']);
+        printf("  %-15s : %s\n", 'username',      $row['username']);
+        printf("  %-15s : %s\n", 'role',           $row['role']);
+        printf("  %-15s : %s\n", 'account_status', $row['account_status']);
         echo "\n  ► Adding again via the web UI will fail with a duplicate key error.\n";
         echo "    Use the Edit or Delete buttons in User Management instead.\n";
     } else {
@@ -224,12 +371,12 @@ echo "\n";
 // Summary
 // ─────────────────────────────────────────────────────────────────────────
 
-line('=');
+hr('=');
 echo " RESULT: Employee '{$employeeId}' passes all checks.\n";
 echo "         Detected role : {$detected['role']}"
     . ($detected['entity'] !== '' ? " / entity: {$detected['entity']}" : '') . "\n";
 echo "         They can be added via the web UI Add New User form.\n";
-line('=');
+hr('=');
 echo "\n";
 
 exit(0);

@@ -1136,7 +1136,7 @@ function user_role_label(string $role): string {
             const jobLevel = (emp.job_level || '').trim().toLowerCase();
             if (section === 'human resource, ga and compliance') return 'ga_staff';
             if (jobLevel === 'security')       return 'security';
-            if (jobLevel === 'segurity guard') return 'security'; // matches the typo in the company HR system (SEGURITY not SECURITY)
+            if (jobLevel === 'segurity guard') return 'security'; // 'segurity' is the actual typo in the company HR system (SEGURITY GUARD, not SECURITY GUARD)
             if (jobLevel === 'support/pic')    return 'department';
             return null;
         },

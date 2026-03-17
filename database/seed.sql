@@ -95,11 +95,11 @@ INSERT INTO users (employee_no, name, username, password_hash, role, department_
   ('1200385', 'Cherry Novelyn Buenconsejo', 'c.buenconsejo', @PWD, 'ga_staff',     NULL, NULL, NULL, 'active', 'ga_president', '300553',  '2026-01-15 09:10:00');
 
 INSERT INTO users (employee_no, name, username, password_hash, role, department_id, security_type, entity, account_status, created_by_role, created_by_employee_no, created_at) VALUES
-  (4, 'Ana Mendoza',        'a.mendoza',    @PWD, 'department', 1, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:20:00'),
-  (5, 'Carlos Bautista',    'c.bautista',   @PWD, 'department', 2, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:21:00'),
-  (6, 'Elena Cruz',         'e.cruz',       @PWD, 'department', 3, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:22:00'),
-  (7, 'Roberto Villanueva', 'r.villanueva', @PWD, 'department', 4, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:23:00'),
-  (8, 'Maricel Torres',     'm.torres',     @PWD, 'department', 5, NULL, NULL, 'active', 'ga_staff', '1200385', '2026-01-15 09:24:00');
+  ('4', 'Ana Mendoza',        'a.mendoza',    @PWD, 'department', 1, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:20:00'),
+  ('5', 'Carlos Bautista',    'c.bautista',   @PWD, 'department', 2, NULL, NULL, 'active', 'ga_staff', '300553',  '2026-01-15 09:21:00'),
+  ('6', 'Elena Cruz',         'e.cruz',       @PWD, 'department', 3, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:22:00'),
+  ('7', 'Roberto Villanueva', 'r.villanueva', @PWD, 'department', 4, NULL, NULL, 'active', 'ga_staff', '401157',  '2026-01-15 09:23:00'),
+  ('8', 'Maricel Torres',     'm.torres',     @PWD, 'department', 5, NULL, NULL, 'active', 'ga_staff', '1200385', '2026-01-15 09:24:00');
 
 -- NOTE: security_type is REQUIRED for the PDF template to work correctly.
 --   internal -> ARAGON header;  external -> SISCO header
