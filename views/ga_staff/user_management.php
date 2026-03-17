@@ -122,8 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
-                             $emp['job_level'],   $emp['department'],
+                            $emp['job_level'],   $emp['department'],
                             $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                             $currentUserEmployeeNo,
@@ -141,7 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
+                            $emp['job_level'],   $emp['department'],
+                            $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                         ]
                     );
