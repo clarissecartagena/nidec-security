@@ -122,8 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
-                             $emp['job_level'],   $emp['department'],
+                            $emp['job_level'],   $emp['department'],
                             $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                             $currentUserEmployeeNo,
@@ -141,7 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
+                            $emp['job_level'],   $emp['department'],
+                            $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                         ]
                     );
@@ -613,7 +613,7 @@ function user_role_label(string $role): string {
             </div>
         </div>
 
-        <!-- Add User Modal — two-step: search employee → set credentials/role -->
+        <!-- Add User Modal — two-step: search employee → set credentials -->
         <div id="add-user-modal" class="modal-overlay hidden">
             <div class="modal modal--accent">
                 <div class="modal-accent-header">
@@ -622,10 +622,7 @@ function user_role_label(string $role): string {
                         <p class="modal-accent-subtitle">Search the company employee directory first</p>
                     </div>
                     <button type="button" class="modal-accent-close" aria-label="Close" onclick="UsersPage.closeAddModal()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"/>
-                            <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="modal-accent-body">
@@ -633,124 +630,126 @@ function user_role_label(string $role): string {
                     <!-- Step 1: Employee search -->
                     <div id="add-step-search">
                         <div class="mb-3">
-                            <label class="block text-sm font-medium text-foreground mb-1" for="emp-search-input">
+                            <label class="form-label text-sm font-medium text-foreground mb-1" for="emp-search-input">
                                 Search Employee
                             </label>
-                            <div class="flex gap-2">
+                            <div class="input-group">
                                 <input type="text" id="emp-search-input"
-                                    class="flex-1"
+                                    class="form-control form-control-sm"
                                     placeholder="Employee ID or Full Name (min 2 characters)…"
                                     autocomplete="off" />
-                                <button type="button" id="emp-search-btn" class="btn btn-primary">
-                                    Search
+                                <button type="button" id="emp-search-btn" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-search me-1" aria-hidden="true"></i>Search
                                 </button>
                             </div>
-                            <p class="text-xs text-muted-foreground mt-1">
+                            <div class="form-text text-xs">
                                 Data is fetched from the company employee directory.
-                            </p>
+                            </div>
                         </div>
 
                         <div id="emp-search-loader" class="text-center py-3 hidden" aria-live="polite">
-                            <span class="text-sm text-muted-foreground">Searching…</span>
+                            <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                            <span class="ms-2 text-sm text-muted-foreground">Searching…</span>
                         </div>
 
-                        <div id="emp-search-alert" class="alert alert-error text-sm py-2 mb-0 hidden" role="alert"></div>
+                        <div id="emp-search-alert" class="alert alert-danger text-sm py-2 mb-0 hidden" role="alert"></div>
 
                         <div id="emp-search-results" class="hidden">
                             <p class="text-xs text-muted-foreground mb-2">Select an employee to continue:</p>
-                            <div id="emp-results-list" class="flex flex-col gap-2"></div>
+                            <div id="emp-results-list" class="d-flex flex-column gap-2"></div>
                         </div>
                     </div>
 
-                    <!-- Step 2: Confirm employee + set credentials / role -->
+                    <!-- Step 2: Confirm employee + set credentials -->
                     <div id="add-step-form" class="hidden">
 
                         <div class="p-3 mb-4 rounded border" style="background: var(--surface-2, #f8f9fa)">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-xs text-muted-foreground font-semibold uppercase">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-xs text-muted-foreground fw-semibold text-uppercase letter-spacing-wide">
                                     Selected Employee
                                 </span>
-                                <button type="button" class="btn btn-link text-xs p-0"
+                                <button type="button" class="btn btn-link btn-sm p-0 text-xs"
                                     onclick="UsersPage.resetAddModal()">
-                                    ← Change
+                                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Change
                                 </button>
                             </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
+                            <div class="row g-2">
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Employee ID</div>
-                                    <div class="text-sm font-medium font-mono" id="emp-card-id">—</div>
+                                    <div class="text-sm fw-medium font-mono" id="emp-card-id">—</div>
                                 </div>
-                                <div>
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Full Name</div>
-                                    <div class="text-sm font-medium" id="emp-card-name">—</div>
+                                    <div class="text-sm fw-medium" id="emp-card-name">—</div>
                                 </div>
-                                <div>
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Department</div>
                                     <div class="text-sm" id="emp-card-dept">—</div>
                                 </div>
-                                <div>
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Position</div>
                                     <div class="text-sm" id="emp-card-pos">—</div>
                                 </div>
-                                <div class="col-span-2">
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Email</div>
                                     <div class="text-sm" id="emp-card-email">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Detected Role</div>
+                                    <div class="text-sm fw-semibold" id="emp-card-role">—</div>
                                 </div>
                             </div>
                         </div>
 
-                        <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4" id="add-user-form">
+                        <form method="POST" class="row g-3" id="add-user-form">
                             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
                             <input type="hidden" name="action" value="add" />
+                            <!-- employee_id is verified server-side via Employee API; role & entity are auto-detected -->
                             <input type="hidden" name="employee_id" id="add-employee-id" />
+                            <input type="hidden" id="add-role" />
+                            <input type="hidden" name="entity" id="add-entity" />
 
-                            <div>
-                                <label class="block text-sm font-medium text-foreground mb-1" for="add-username">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1" for="add-username">
                                     Username
                                 </label>
-                                <input type="text" name="username" id="add-username"
+                                <input type="text" class="form-control form-control-sm" name="username" id="add-username"
                                     required placeholder="Login username"
                                     autocomplete="off" />
-                                <p class="text-xs text-muted-foreground mt-1">Used to log in to the system.</p>
+                                <div class="form-text text-xs">Used to log in to the system.</div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-foreground mb-1">Password</label>
-                                <input type="password" name="password"
-                                    required placeholder="Set initial password"
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Password</label>
+                                <input type="password" class="form-control form-control-sm" name="password"
+                                    id="add-password" required placeholder="Set initial password"
                                     autocomplete="new-password" />
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-foreground mb-1">Role</label>
-                                <select name="role" required id="add-role">
-                                    <option value="" selected disabled>Select role</option>
-                                    <option value="ga_staff">GA Staff</option>
-                                    <option value="security">Security</option>
-                                    <option value="department">Department</option>
-                                </select>
-                            </div>
 
-                            <div id="add-department-wrap" class="hidden">
-                                <label class="block text-sm font-medium text-foreground mb-1">Department</label>
-                                <select name="department_id" id="add-department-id">
-                                    <option value="0">—</option>
+                            <div id="add-department-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Department</label>
+                                <select name="department_id" class="form-select form-select-sm" id="add-department-id">
+                                    <option value="0">— select department —</option>
                                     <?php foreach ($departmentsDb as $d): ?>
                                         <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
 
-                            <div id="add-security-type-wrap" class="hidden">
-                                <label class="block text-sm font-medium text-foreground mb-1">Security Type</label>
-                                <select name="security_type" id="add-security-type">
+                            <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
+                                <select name="security_type" class="form-select form-select-sm" id="add-security-type">
                                     <option value="" selected disabled>Select type</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>
+                                <div class="form-text text-xs">Entity: <strong id="add-entity-display">—</strong></div>
                             </div>
 
-                            <div class="modal-footer md:col-span-2">
+                            <div class="modal-footer col-12 d-flex justify-content-end gap-2 flex-wrap">
                                 <button type="button" onclick="UsersPage.closeAddModal()" class="btn btn-outline">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Add User</button>
+                                <button type="submit" id="add-user-submit-btn" class="btn btn-primary">
+                                    <i class="bi bi-person-check me-1" aria-hidden="true"></i>Add User
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -926,11 +925,8 @@ function user_role_label(string $role): string {
         },
 
         init() {
-            const addRole = document.getElementById('add-role');
-            if (addRole) {
-                addRole.addEventListener('change', () => this.syncConditionalFields('add'));
-                this.syncConditionalFields('add');
-            }
+            // add-role is now a hidden input updated by selectEmployee(); no change listener needed.
+            this.syncConditionalFields('add');
 
             const editRole = document.getElementById('edit-role');
             if (editRole) {
@@ -1108,23 +1104,39 @@ function user_role_label(string $role): string {
             const empIdField = document.getElementById('add-employee-id');
             if (empIdField) empIdField.value = emp.employee_id || '';
 
+            // Pre-fill username suggestion from employee_id.
             const usernameField = document.getElementById('add-username');
             if (usernameField && !usernameField.value && emp.employee_id) {
                 usernameField.value = String(emp.employee_id).toLowerCase();
             }
 
+            // Auto-detect role; populate hidden #add-role so syncConditionalFields can read it.
+            const detectedRole = this._detectEmployeeRole(emp);
+            const roleInput = document.getElementById('add-role');
+            if (roleInput) roleInput.value = detectedRole || '';
+
+            // Show human-readable role in the employee info card.
+            const roleLabels = { ga_staff: 'GA Staff', security: 'Security Guard', department: 'Department PIC' };
+            set('emp-card-role', roleLabels[detectedRole] || (detectedRole ? detectedRole : 'Unknown / Not Eligible'));
+
+            // Derive entity from API data (mirrors server-side EmployeeService logic).
+            const apiEntity = String(emp.entity || '').trim().toUpperCase();
+            let resolvedEntity = '';
+            if (apiEntity === 'NCFL' || apiEntity === 'NPFL') {
+                resolvedEntity = apiEntity;
+            } else {
+                const jl = String(emp.job_level || '').trim().toLowerCase();
+                resolvedEntity = (jl === 'segurity guard') ? 'NPFL' : (jl === 'security' ? 'NCFL' : '');
+            }
+            const entityField = document.getElementById('add-entity');
+            if (entityField) entityField.value = resolvedEntity;
+            const entityDisplay = document.getElementById('add-entity-display');
+            if (entityDisplay) entityDisplay.textContent = resolvedEntity || '—';
+
             const stepSearch = document.getElementById('add-step-search');
             const stepForm   = document.getElementById('add-step-form');
             if (stepSearch) stepSearch.classList.add('hidden');
             if (stepForm)   stepForm.classList.remove('hidden');
-
-            // Auto-detect and pre-select role from employee API data so the correct
-            // conditional fields (security_type, department) are immediately visible.
-            const detectedRole = this._detectEmployeeRole(emp);
-            const roleEl = document.getElementById('add-role');
-            if (roleEl && detectedRole) {
-                roleEl.value = detectedRole;
-            }
             this.syncConditionalFields('add');
         },
 
@@ -1169,17 +1181,18 @@ function user_role_label(string $role): string {
             list.innerHTML = '';
             employees.forEach(emp => {
                 const row = document.createElement('div');
-                row.className = 'flex items-center justify-between gap-3 p-2 rounded border cursor-pointer';
+                row.className = 'd-flex align-items-center justify-content-between gap-3 p-2 rounded border bg-body';
                 row.style.cursor = 'pointer';
 
                 const info = document.createElement('div');
+                info.className = 'overflow-hidden';
 
                 const nameLine = document.createElement('div');
-                nameLine.className = 'text-sm font-medium';
+                nameLine.className = 'text-sm fw-medium text-truncate';
                 nameLine.textContent = emp.fullname || '—';
 
                 const subLine = document.createElement('div');
-                subLine.className = 'text-xs text-muted-foreground';
+                subLine.className = 'text-xs text-muted-foreground text-truncate';
                 subLine.textContent = [emp.employee_id, emp.department, emp.position]
                     .filter(v => v && String(v).trim())
                     .join(' · ');
@@ -1189,7 +1202,7 @@ function user_role_label(string $role): string {
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'btn btn-sm btn-outline';
+                btn.className = 'btn btn-sm btn-outline py-1 px-2 flex-shrink-0';
                 btn.textContent = 'Select';
 
                 row.appendChild(info);
@@ -1202,7 +1215,8 @@ function user_role_label(string $role): string {
             if (usingMock) {
                 const notice = document.createElement('div');
                 notice.className = 'alert alert-warning text-xs py-1 mt-2 mb-0';
-                notice.textContent = '⚠ Development mode: data from local mock API.';
+                notice.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>'
+                    + 'Development mode: data from local mock API.';
                 list.appendChild(notice);
             }
 
@@ -1219,6 +1233,7 @@ function user_role_label(string $role): string {
             const deptSelect  = document.getElementById(prefix + '-department-id');
             const secWrap     = document.getElementById(prefix + '-security-type-wrap');
             const secSelect   = document.getElementById(prefix + '-security-type');
+            // Entity wrap/select only exists on the edit form; on add it is a hidden input.
             const entityWrap  = document.getElementById(prefix + '-entity-wrap');
             const entitySelect = document.getElementById(prefix + '-entity');
 
@@ -1233,9 +1248,12 @@ function user_role_label(string $role): string {
             if (secSelect) secSelect.required = isSecurity;
             if (!isSecurity && secSelect) secSelect.value = '';
 
+            // Entity wrap/select only present on edit form (visible select with options).
             if (entityWrap) entityWrap.classList.toggle('hidden', !isSecurity);
-            if (entitySelect) entitySelect.required = isSecurity;
-            if (!isSecurity && entitySelect) entitySelect.value = '';
+            if (entitySelect && entitySelect.tagName === 'SELECT') {
+                entitySelect.required = isSecurity;
+                if (!isSecurity) entitySelect.value = '';
+            }
         },
 
         // ── Edit modal ────────────────────────────────────────────────────

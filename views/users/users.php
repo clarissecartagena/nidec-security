@@ -377,7 +377,7 @@ function getUserStatusBadge($status) {
             </div>
         </div>
 
-        <!-- Add User Modal — two-step: search employee → set credentials/role -->
+        <!-- Add User Modal — two-step: search employee → set credentials -->
         <div id="add-user-modal" class="modal-overlay hidden">
             <div class="modal modal--accent">
                 <div class="modal-accent-header">
@@ -424,7 +424,7 @@ function getUserStatusBadge($status) {
                         </div>
                     </div>
 
-                    <!-- ── Step 2: Confirm employee + set credentials / role ───── -->
+                    <!-- ── Step 2: Confirm employee + set credentials ──────────── -->
                     <div id="add-step-form" class="hidden">
 
                         <!-- Read-only employee info card (source: API) -->
@@ -455,9 +455,13 @@ function getUserStatusBadge($status) {
                                     <div class="text-xs text-muted-foreground">Position</div>
                                     <div class="text-sm" id="emp-card-pos">—</div>
                                 </div>
-                                <div class="col-12">
+                                <div class="col-6">
                                     <div class="text-xs text-muted-foreground">Email</div>
                                     <div class="text-sm" id="emp-card-email">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-xs text-muted-foreground">Detected Role</div>
+                                    <div class="text-sm fw-semibold" id="emp-card-role">—</div>
                                 </div>
                             </div>
                         </div>
@@ -465,7 +469,10 @@ function getUserStatusBadge($status) {
                         <form method="POST" class="row g-3" id="add-user-form">
                             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>" />
                             <input type="hidden" name="action" value="add" />
+                            <!-- employee_id is verified server-side via Employee API; role & entity are auto-detected -->
                             <input type="hidden" name="employee_id" id="add-employee-id" />
+                            <input type="hidden" id="add-role" />
+                            <input type="hidden" name="entity" id="add-entity" />
 
                             <div class="col-12 col-md-6">
                                 <label class="form-label text-sm font-medium text-foreground mb-1" for="add-username">
@@ -479,23 +486,14 @@ function getUserStatusBadge($status) {
                             <div class="col-12 col-md-6">
                                 <label class="form-label text-sm font-medium text-foreground mb-1">Password</label>
                                 <input type="password" class="form-control form-control-sm" name="password"
-                                    required placeholder="Set initial password"
+                                    id="add-password" required placeholder="Set initial password"
                                     autocomplete="new-password" />
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Role</label>
-                                <select name="role" class="form-select form-select-sm" required id="add-role">
-                                    <option value="" selected disabled>Select role</option>
-                                    <option value="ga_staff">GA Staff</option>
-                                    <option value="security">Security</option>
-                                    <option value="department">Department</option>
-                                </select>
                             </div>
 
                             <div id="add-department-wrap" class="hidden col-12 col-md-6">
                                 <label class="form-label text-sm font-medium text-foreground mb-1">Department</label>
                                 <select name="department_id" class="form-select form-select-sm" id="add-department-id">
-                                    <option value="0">—</option>
+                                    <option value="0">— select department —</option>
                                     <?php foreach ($departmentsDb as $d): ?>
                                         <option value="<?php echo (int)$d['id']; ?>"><?php echo htmlspecialchars($d['name']); ?></option>
                                     <?php endforeach; ?>
@@ -503,26 +501,18 @@ function getUserStatusBadge($status) {
                             </div>
 
                             <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
                                 <select name="security_type" class="form-select form-select-sm" id="add-security-type">
                                     <option value="" selected disabled>Select type</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>
-                            </div>
-
-                            <div id="add-entity-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Assigned Entity</label>
-                                <select name="entity" class="form-select form-select-sm" id="add-entity">
-                                    <option value="" selected disabled>Select entity</option>
-                                    <option value="NCFL">NCFL</option>
-                                    <option value="NPFL">NPFL</option>
-                                </select>
+                                <div class="form-text text-xs">Entity: <strong id="add-entity-display">—</strong></div>
                             </div>
 
                             <div class="modal-footer col-12 d-flex justify-content-end gap-2 flex-wrap">
                                 <button type="button" onclick="UsersPage.closeAddModal()" class="btn btn-outline">Cancel</button>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" id="add-user-submit-btn" class="btn btn-primary">
                                     <i class="bi bi-person-check me-1" aria-hidden="true"></i>Add User
                                 </button>
                             </div>
@@ -698,26 +688,8 @@ function getUserStatusBadge($status) {
 
     // ── Init ──────────────────────────────────────────────────────────────
     init() {
-      const addRole = document.getElementById('add-role');
-      if (addRole) {
-        addRole.addEventListener('change', () => this.syncConditionalFields('add'));
-        this.syncConditionalFields('add');
-        
-              // Auto-populate entity for security employees. Entity is derived server-side
-      // from job_level; mirror that logic here so the required field has a value
-      // and HTML5 form validation does not block submission.
-      const entityField = document.getElementById('add-entity');
-      if (entityField) {
-        const apiEntity = String(emp.entity || '').trim().toUpperCase();
-        if (apiEntity === 'NCFL' || apiEntity === 'NPFL') {
-          entityField.value = apiEntity;
-        } else {
-          const jl = String(emp.job_level || '').trim().toLowerCase();
-          entityField.value = (jl === 'segurity guard') ? 'NPFL' : (jl === 'security' ? 'NCFL' : '');
-        }
-      }
-
-      }
+      // add-role is now a hidden input updated by selectEmployee(); no change listener needed.
+      this.syncConditionalFields('add');
 
       const editRole = document.getElementById('edit-role');
       if (editRole) {
@@ -915,14 +887,31 @@ function getUserStatusBadge($status) {
         usernameField.value = String(emp.employee_id).toLowerCase();
       }
 
-      // Auto-detect and pre-select role from employee API data so the correct
-      // conditional fields (security_type, department) are immediately visible.
+      // Auto-detect role; populate hidden #add-role so syncConditionalFields can read it.
       const detectedRole = this._detectEmployeeRole(emp);
-      const roleEl = document.getElementById('add-role');
-      if (roleEl && detectedRole) {
-        roleEl.value = detectedRole;
-      }
+      const roleInput = document.getElementById('add-role');
+      if (roleInput) roleInput.value = detectedRole || '';
 
+      // Show human-readable role in the employee info card.
+      const roleLabels = { ga_staff: 'GA Staff', security: 'Security Guard', department: 'Department PIC' };
+      set('emp-card-role', roleLabels[detectedRole] || (detectedRole ? detectedRole : 'Unknown / Not Eligible'));
+
+      // Derive entity from API data (mirrors server-side EmployeeService logic).
+      // Entity is submitted as a hidden field; the server auto-detects it too, so
+      // this is only needed for display purposes and as a fallback.
+      const apiEntity = String(emp.entity || '').trim().toUpperCase();
+      let resolvedEntity = '';
+      if (apiEntity === 'NCFL' || apiEntity === 'NPFL') {
+        resolvedEntity = apiEntity;
+      } else {
+        const jl = String(emp.job_level || '').trim().toLowerCase();
+        resolvedEntity = (jl === 'segurity guard') ? 'NPFL' : (jl === 'security' ? 'NCFL' : '');
+      }
+      const entityField = document.getElementById('add-entity');
+      if (entityField) entityField.value = resolvedEntity;
+      // Update inline entity display text inside the security-type section.
+      const entityDisplay = document.getElementById('add-entity-display');
+      if (entityDisplay) entityDisplay.textContent = resolvedEntity || '—';
 
       const stepSearch = document.getElementById('add-step-search');
       const stepForm   = document.getElementById('add-step-form');
@@ -1024,6 +1013,8 @@ function getUserStatusBadge($status) {
       const deptSelect  = document.getElementById(prefix + '-department-id');
       const secWrap     = document.getElementById(prefix + '-security-type-wrap');
       const secSelect   = document.getElementById(prefix + '-security-type');
+      // Entity wrap only exists on the edit form; it is not a form field on add
+      // (entity is auto-detected server-side and stored as a hidden input).
       const entityWrap  = document.getElementById(prefix + '-entity-wrap');
       const entitySelect = document.getElementById(prefix + '-entity');
 
@@ -1038,9 +1029,12 @@ function getUserStatusBadge($status) {
       if (secSelect) secSelect.required = isSecurity;
       if (!isSecurity && secSelect) secSelect.value = '';
 
+      // Entity wrap/select only present on edit form (visible select with options).
       if (entityWrap) entityWrap.classList.toggle('hidden', !isSecurity);
-      if (entitySelect) entitySelect.required = isSecurity;
-      if (!isSecurity && entitySelect) entitySelect.value = '';
+      if (entitySelect && entitySelect.tagName === 'SELECT') {
+        entitySelect.required = isSecurity;
+        if (!isSecurity) entitySelect.value = '';
+      }
     },
 
     // ── Edit modal ────────────────────────────────────────────────────────
