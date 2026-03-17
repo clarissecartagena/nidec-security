@@ -87,21 +87,20 @@ if ($employeeId === '') {
     if ($dbOk) {
         try {
             $users = db_fetch_all(
-                'SELECT id, username, employee_no, role, account_status FROM users ORDER BY id LIMIT 20'
+                'SELECT employee_no, username, role, account_status FROM users ORDER BY employee_no LIMIT 20'
             );
             if (empty($users)) {
                 warn("No user accounts exist in the database yet.");
                 echo "    ► This is normal for a fresh install.\n";
             } else {
                 pass(count($users) . " account(s) found:");
-                printf("    %-6s  %-20s  %-12s  %-16s  %s\n",
-                    'ID', 'Username', 'Employee No', 'Role', 'Status');
+                printf("    %-12s  %-20s  %-16s  %s\n",
+                    'Emp No', 'Username', 'Role', 'Status');
                 echo "    " . str_repeat('-', 70) . "\n";
                 foreach ($users as $u) {
-                    printf("    %-6s  %-20s  %-12s  %-16s  %s\n",
-                        $u['id'],
-                        $u['username'],
+                    printf("    %-12s  %-20s  %-16s  %s\n",
                         $u['employee_no'] ?? '(none)',
+                        $u['username'],
                         $u['role'],
                         $u['account_status']);
                 }
@@ -346,7 +345,7 @@ hr();
 
 try {
     $row = db_fetch_one(
-        'SELECT id, username, role, account_status FROM users WHERE employee_no = ? LIMIT 1',
+        'SELECT employee_no, username, role, account_status FROM users WHERE employee_no = ? LIMIT 1',
         's',
         [$employeeId]
     );

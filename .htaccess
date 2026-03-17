@@ -37,8 +37,12 @@ Options -Indexes
     RewriteRule ^(.*)$ public/$1 [L]
 
     # --- API endpoints (served as real PHP files inside public/api/) ---
-    # e.g. /NidecSecurity/api/employee_search.php → public/api/employee_search.php
+    # e.g. /NidecSecurity/api/analytics.php → public/api/analytics.php
+    # NOTE: employee_search.php is excluded here and handled by the front
+    # controller instead so that it always runs within a properly-initialised
+    # PHP session context (session started by public/index.php).
     RewriteCond %{REQUEST_URI} ^/[^/]+/api/
+    RewriteCond %{REQUEST_URI} !api/employee_search\.php [NC]
     RewriteRule ^(.*)$ public/$1 [L]
 
     # --- All other requests → front controller ---
