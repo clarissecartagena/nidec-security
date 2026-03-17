@@ -244,10 +244,10 @@ $start_new_page();
 
 // --- EXTERNAL INFO BLOCK ---
 
-// 1. DATE SECTION
-$content .= pdf_text($marginL, $y, 'F2', 11, 'DATE');
-$content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $dateStr);
-$y -= 35;
+// // 1. DATE SECTION
+// $content .= pdf_text($marginL, $y, 'F2', 11, 'DATE');
+// $content .= pdf_text($marginL + 70, $y, 'F1', 11, ': ' . $dateStr);
+// $y -= 35;
 
 // 2. TO SECTION (signature above name)
 $content .= pdf_text($marginL, $y, 'F2', 11, 'TO');

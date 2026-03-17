@@ -702,6 +702,21 @@ function getUserStatusBadge($status) {
       if (addRole) {
         addRole.addEventListener('change', () => this.syncConditionalFields('add'));
         this.syncConditionalFields('add');
+        
+              // Auto-populate entity for security employees. Entity is derived server-side
+      // from job_level; mirror that logic here so the required field has a value
+      // and HTML5 form validation does not block submission.
+      const entityField = document.getElementById('add-entity');
+      if (entityField) {
+        const apiEntity = String(emp.entity || '').trim().toUpperCase();
+        if (apiEntity === 'NCFL' || apiEntity === 'NPFL') {
+          entityField.value = apiEntity;
+        } else {
+          const jl = String(emp.job_level || '').trim().toLowerCase();
+          entityField.value = (jl === 'segurity guard') ? 'NPFL' : (jl === 'security' ? 'NCFL' : '');
+        }
+      }
+
       }
 
       const editRole = document.getElementById('edit-role');
@@ -840,11 +855,24 @@ function getUserStatusBadge($status) {
       const resultsBox = document.getElementById('emp-search-results');
       if (resultsBox) resultsBox.classList.add('hidden');
 
-      const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+      // Use exact employee_id lookup for all-digit input; free-text search otherwise.
+      const isNumericId = /^\d+$/.test(query);
+      const url = isNumericId
+        ? this._empApiUrl + '?employee_id=' + encodeURIComponent(query)
+        : this._empApiUrl + '?q=' + encodeURIComponent(query);
+
 
       fetch(url, { credentials: 'same-origin' })
         .then(r => {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) {
+            return r.text().then(text => {
+              let errMsg = 'Server error (HTTP ' + r.status + '). Please try again.';
+              // Attempt to extract a descriptive error from a JSON response body.
+              // If parsing fails we keep the generic fallback message above.
+              try { const j = JSON.parse(text); if (j.error) errMsg = j.error; } catch (_) {}
+              throw new Error(errMsg);
+            });
+          }
           return r.json();
         })
         .then(data => {
@@ -860,9 +888,9 @@ function getUserStatusBadge($status) {
           }
           this._renderResults(employees, !!data.using_mock);
         })
-        .catch(() => {
+        .catch(err => {
           this._setSearchLoading(false);
-          this._showSearchAlert('Network error. Please check your connection and try again.');
+          this._showSearchAlert((err && err.message) ? err.message : 'Network error. Please check your connection and try again.');
         });
     },
 
@@ -887,10 +915,33 @@ function getUserStatusBadge($status) {
         usernameField.value = String(emp.employee_id).toLowerCase();
       }
 
+      // Auto-detect and pre-select role from employee API data so the correct
+      // conditional fields (security_type, department) are immediately visible.
+      const detectedRole = this._detectEmployeeRole(emp);
+      const roleEl = document.getElementById('add-role');
+      if (roleEl && detectedRole) {
+        roleEl.value = detectedRole;
+      }
+
+
       const stepSearch = document.getElementById('add-step-search');
       const stepForm   = document.getElementById('add-step-form');
       if (stepSearch) stepSearch.classList.add('hidden');
       if (stepForm)   stepForm.classList.remove('hidden');
+      this.syncConditionalFields('add');
+    },
+    /**
+     * Mirror the server-side EmployeeService::detectRoleFromEmployee() logic.
+     * Returns 'ga_staff' | 'security' | 'department' | null.
+     */
+    _detectEmployeeRole(emp) {
+      const section  = (emp.section   || '').trim().toLowerCase();
+      const jobLevel = (emp.job_level || '').trim().toLowerCase();
+      if (section === 'human resource, ga and compliance') return 'ga_staff';
+      if (jobLevel === 'security')       return 'security';
+      if (jobLevel === 'segurity guard') return 'security'; // intentional API typo
+      if (jobLevel === 'support/pic')    return 'department';
+      return null;
     },
 
     _setSearchLoading(loading) {

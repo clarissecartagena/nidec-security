@@ -74,18 +74,25 @@ try {
             $emp = $result['employee'];
             // Check if the employee qualifies for any system role.
             if (EmployeeService::detectRoleFromEmployee($emp) === null) {
+                $empSection  = trim((string)($emp['section']   ?? ''));
+                $empJobLevel = trim((string)($emp['job_level'] ?? ''));
                 echo json_encode([
                     'success'    => false,
                     'employees'  => [],
-                    'error'      => 'No GA Staff, Security, or Department/PIC employee found with that employee number.',
-                    'using_mock' => false,
+                    'error'      => 'Employee found but does not match an allowed role. '
+                        . "API returned: section=\"{$empSection}\", job_level=\"{$empJobLevel}\". "
+                        . 'Expected section="' . GA_STAFF_SECTION . '" (GA Staff), '
+                        . 'job_level="' . SECURITY_JOB_LEVEL_NCFL . '" or "' . SECURITY_JOB_LEVEL_NPFL . '" (Security), '
+                        . 'or job_level="' . DEPARTMENT_JOB_LEVEL . '" (Department). '
+                        . 'Run tools/debug_add_user.php for full diagnostics.',
+                    'using_mock' => $service->isUsingMock(),
                 ]);
             } else {
                 echo json_encode([
                     'success'    => true,
                     'employees'  => [$emp],
                     'error'      => null,
-                    'using_mock' => false,
+                    'using_mock' => $service->isUsingMock(),
                 ]);
             }
         } else {
@@ -93,7 +100,7 @@ try {
                 'success'    => false,
                 'employees'  => [],
                 'error'      => $result['error'],
-                'using_mock' => false,
+                'using_mock' => $service->isUsingMock(),
             ]);
         }
     } elseif ($query !== '') {
@@ -109,10 +116,23 @@ try {
 
             if (count($eligible) === 0 && count($allFound) > 0) {
                 // Employees were found in the directory but none match an allowed role.
+                // Build a concise list of what fields the API returned so the admin
+                // can compare against the expected role-detection values.
+                $sample = array_slice($allFound, 0, 3);
+                $details = implode('; ', array_map(static function (array $e): string {
+                    $sec = trim((string)($e['section']   ?? ''));
+                    $jl  = trim((string)($e['job_level'] ?? ''));
+                    return '"' . ($e['fullname'] ?? '?') . '"'
+                         . ' section="' . $sec . '"'
+                         . ' job_level="' . $jl . '"';
+                }, $sample));
+
                 echo json_encode([
                     'success'    => false,
                     'employees'  => [],
-                    'error'      => 'No GA Staff, Security, or Department/PIC employee found with that name or employee number.',
+                    'error'      => count($allFound) . ' employee(s) found but none match an allowed role. '
+                        . 'Run tools/debug_add_user.php <employee_id> for diagnostics. '
+                        . 'Sample: ' . $details,
                     'using_mock' => $result['using_mock'],
                 ]);
             } else {
