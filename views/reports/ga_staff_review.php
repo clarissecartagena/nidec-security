@@ -339,20 +339,20 @@
    ========================================================================== */
 .confirm-modal-content {
     max-width: 460px;
-    text-align: center;
-    padding: 2.5rem 2rem;
+    text-align: left;
+    padding: 2rem;
 }
 
 .confirm-icon-circle {
-    width: 80px;
-    height: 80px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: #ffffff;
+    background: #f8fafc;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1.5rem;
-    font-size: 32px;
+    margin: 0 0 1rem;
+    font-size: 28px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--border);
 }
@@ -368,15 +368,70 @@
     font-size: 15px;
     color: #64748b;
     line-height: 1.6;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
+}
+
+.confirm-modal-header {
+    position: relative;
+}
+
+.confirm-close-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.confirm-close-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.confirm-action-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    margin-bottom: 0.75rem;
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.confirm-action-chip.return {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.confirm-action-chip.forward {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.confirm-modal-body {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1rem;
 }
 
 .confirm-modal-notes {
     width: 100%;
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 1rem;
+    padding: 0.75rem;
     font-size: 14px;
     transition: all 0.2s;
     margin-top: 0.5rem;
@@ -387,6 +442,20 @@
     border-color: var(--accent);
     background: #ffffff;
     box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.1);
+}
+
+.confirm-textarea-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.confirm-modal-footer {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
 }
 
 /* ==========================================================================
@@ -411,11 +480,25 @@
 }
 
 .btn-modern-cancel {
-    background: transparent;
-    color: #64748b;
+    background: #e2e8f0;
+    color: #334155;
     font-weight: 600;
-    padding: 12px 24px;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.btn-modern-cancel:hover {
+    background: #cbd5e1;
+    color: #1e293b;
+}
+
+.btn-confirm-action {
+    color: #ffffff;
+    font-weight: 700;
+    padding: 10px 18px;
     border: none;
+    border-radius: 10px;
 }
 
 .hidden { display: none !important; }
@@ -614,6 +697,8 @@
 <div id="confirm-modal-overlay" class="modal-overlay hidden">
     <div class="confirm-modal-content">
         <div class="confirm-modal-header">
+            <button type="button" class="confirm-close-btn" onclick="CustomConfirm.close()" aria-label="Close confirmation modal"><i class="bi bi-x-lg"></i></button>
+            <div id="confirm-action-chip" class="confirm-action-chip">Action</div>
             <div id="confirm-icon-box" class="confirm-icon-circle">
                 <i id="confirm-icon" class="bi"></i>
             </div>
@@ -621,12 +706,12 @@
             <p id="confirm-msg" class="confirm-modal-message">Are you sure you want to proceed?</p>
         </div>
         <div class="confirm-modal-body">
-            <label class="confirm-textarea-label">Reason / Feedback (Required for Return)</label>
+            <label id="confirm-notes-label" class="confirm-textarea-label">Reason / Feedback (Required for Return)</label>
             <textarea id="confirm-notes" class="confirm-modal-notes" rows="4" placeholder="Type your message for the security team here..."></textarea>
         </div>
         <div class="confirm-modal-footer">
-            <button type="button" class="btn-modern btn-modern-secondary" onclick="CustomConfirm.close()">Cancel</button>
-            <button type="button" id="confirm-submit-btn" class="btn-modern text-white">Confirm</button>
+            <button type="button" class="btn-modern-cancel" onclick="CustomConfirm.close()">Cancel</button>
+            <button type="button" id="confirm-submit-btn" class="btn-confirm-action">Confirm</button>
         </div>
     </div>
 </div>
@@ -842,6 +927,11 @@ const CustomConfirm = {
 
     init() {
         this.overlay = document.getElementById('confirm-modal-overlay');
+        if (this.overlay) {
+            this.overlay.addEventListener('click', (e) => {
+                if (e.target === this.overlay) this.close();
+            });
+        }
     },
 
     show(reportNo, action, initialNotes) {
@@ -854,26 +944,38 @@ const CustomConfirm = {
         const icon = document.getElementById('confirm-icon');
         const submitBtn = document.getElementById('confirm-submit-btn');
         const notesInput = document.getElementById('confirm-notes');
+        const notesLabel = document.getElementById('confirm-notes-label');
         const titleEl = document.getElementById('confirm-title');
         const msgEl = document.getElementById('confirm-msg');
+        const actionChip = document.getElementById('confirm-action-chip');
 
         notesInput.value = initialNotes;
+        notesInput.style.borderColor = "";
+        submitBtn.className = "btn-confirm-action";
         
         // 1. Configure UI based on "Return" vs "Forward"
         if (action === 'return') {
             iconBox.className = "confirm-icon-circle icon-return";
             icon.className = "bi bi-arrow-left-circle-fill";
+            actionChip.className = "confirm-action-chip return";
+            actionChip.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Return';
             titleEl.textContent = "Return to Security";
             msgEl.textContent = "This will notify the Security team to re-evaluate or fix the report issues.";
             submitBtn.textContent = "Confirm Return";
             submitBtn.style.backgroundColor = "#dc2626"; // Destructive Red
+            notesLabel.textContent = "Reason for Return (Required)";
+            notesInput.placeholder = "Type the reason for returning this report...";
         } else {
             iconBox.className = "confirm-icon-circle icon-forward";
             icon.className = "bi bi-check-circle-fill";
+            actionChip.className = "confirm-action-chip forward";
+            actionChip.innerHTML = '<i class="bi bi-check2-circle"></i> Approval';
             titleEl.textContent = "Forward to President";
             msgEl.textContent = "This will officially move the report to the President's desk for final approval.";
             submitBtn.textContent = "Confirm Approval";
             submitBtn.style.backgroundColor = "#16a34a"; // Success Green
+            notesLabel.textContent = "Remarks (Optional)";
+            notesInput.placeholder = "Add optional remarks before forwarding...";
         }
 
         // 2. Show Modal (CSS handles backdrop-blur)
