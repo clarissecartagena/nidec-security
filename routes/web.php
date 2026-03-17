@@ -113,6 +113,11 @@ $router->get('/download.php', 'DownloadController@index');
 $router->post('/download.php', 'DownloadController@index');
 
 // ─────────────────────────────────────────────
+// API Endpoints — routed via front controller for reliable session handling
+// ─────────────────────────────────────────────
+$router->get('/api/employee_search.php', 'EmployeeSearchController@index');
+
+// ─────────────────────────────────────────────
 // 404  (direct access to legacy 404.php URL)
 // ─────────────────────────────────────────────
 $router->get('/404.php', function (Request $req, Response $res): void {

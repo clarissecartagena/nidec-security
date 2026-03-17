@@ -134,7 +134,13 @@ class EmployeeSyncService
             return ['success' => false, 'data' => null, 'error' => 'The cURL PHP extension is required but is not enabled.'];
         }
 
-        $url = COMPANY_API_BASE_URL . '?' . http_build_query(['employee_no' => $employeeNo]);
+        // Use mock API as fallback in development when the company API is unreachable.
+        $baseUrl = COMPANY_API_BASE_URL;
+        if (API_ENV !== 'production' && !$this->isTcpReachable(COMPANY_API_BASE_URL)) {
+            $baseUrl = MOCK_API_BASE_URL;
+        }
+
+        $url = $baseUrl . '?' . http_build_query(['employee_no' => $employeeNo]);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -315,5 +321,28 @@ class EmployeeSyncService
             'message' => $error,
             'error'   => $error,
         ];
+    }
+
+    /**
+     * Probe TCP reachability of a base URL (2-second hard timeout).
+     * Used to decide whether to fall back to the mock API in development.
+     */
+    private function isTcpReachable(string $url): bool
+    {
+        $parts = parse_url($url);
+        $host  = (string)($parts['host'] ?? '');
+        $port  = (int)($parts['port'] ?? (($parts['scheme'] ?? 'http') === 'https' ? 443 : 80));
+
+        if ($host === '') {
+            return false;
+        }
+
+        $sock = @fsockopen($host, $port, $errno, $errstr, 2);
+        if ($sock !== false) {
+            fclose($sock);
+            return true;
+        }
+
+        return false;
     }
 }
