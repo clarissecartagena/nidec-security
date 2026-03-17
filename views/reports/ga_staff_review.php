@@ -444,6 +444,10 @@
     box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.1);
 }
 
+.confirm-modal-notes.is-invalid {
+    border-color: #dc2626;
+}
+
 .confirm-textarea-label {
     font-size: 12px;
     font-weight: 700;
@@ -499,6 +503,14 @@
     padding: 10px 18px;
     border: none;
     border-radius: 10px;
+}
+
+.btn-confirm-action.return {
+    background: #dc2626;
+}
+
+.btn-confirm-action.forward {
+    background: #16a34a;
 }
 
 .hidden { display: none !important; }
@@ -697,8 +709,8 @@
 <div id="confirm-modal-overlay" class="modal-overlay hidden">
     <div class="confirm-modal-content">
         <div class="confirm-modal-header">
-            <button type="button" class="confirm-close-btn" onclick="CustomConfirm.close()" aria-label="Close confirmation modal"><i class="bi bi-x-lg"></i></button>
-            <div id="confirm-action-chip" class="confirm-action-chip">Action</div>
+            <button type="button" class="confirm-close-btn" onclick="CustomConfirm.close()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
+            <div id="confirm-action-chip" class="confirm-action-chip"><i id="confirm-action-chip-icon" class="bi"></i><span id="confirm-action-chip-text">Action</span></div>
             <div id="confirm-icon-box" class="confirm-icon-circle">
                 <i id="confirm-icon" class="bi"></i>
             </div>
@@ -948,32 +960,36 @@ const CustomConfirm = {
         const titleEl = document.getElementById('confirm-title');
         const msgEl = document.getElementById('confirm-msg');
         const actionChip = document.getElementById('confirm-action-chip');
+        const actionChipIcon = document.getElementById('confirm-action-chip-icon');
+        const actionChipText = document.getElementById('confirm-action-chip-text');
 
         notesInput.value = initialNotes;
-        notesInput.style.borderColor = "";
-        submitBtn.className = "btn-confirm-action";
+        notesInput.classList.remove('is-invalid');
+        submitBtn.classList.remove('return', 'forward');
         
         // 1. Configure UI based on "Return" vs "Forward"
         if (action === 'return') {
             iconBox.className = "confirm-icon-circle icon-return";
             icon.className = "bi bi-arrow-left-circle-fill";
             actionChip.className = "confirm-action-chip return";
-            actionChip.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Return';
+            actionChipIcon.className = "bi bi-arrow-counterclockwise";
+            actionChipText.textContent = "Return";
             titleEl.textContent = "Return to Security";
             msgEl.textContent = "This will notify the Security team to re-evaluate or fix the report issues.";
             submitBtn.textContent = "Confirm Return";
-            submitBtn.style.backgroundColor = "#dc2626"; // Destructive Red
+            submitBtn.classList.add('return');
             notesLabel.textContent = "Reason for Return (Required)";
             notesInput.placeholder = "Type the reason for returning this report...";
         } else {
             iconBox.className = "confirm-icon-circle icon-forward";
             icon.className = "bi bi-check-circle-fill";
             actionChip.className = "confirm-action-chip forward";
-            actionChip.innerHTML = '<i class="bi bi-check2-circle"></i> Approval';
+            actionChipIcon.className = "bi bi-check2-circle";
+            actionChipText.textContent = "Approval";
             titleEl.textContent = "Forward to President";
             msgEl.textContent = "This will officially move the report to the President's desk for final approval.";
             submitBtn.textContent = "Confirm Approval";
-            submitBtn.style.backgroundColor = "#16a34a"; // Success Green
+            submitBtn.classList.add('forward');
             notesLabel.textContent = "Remarks (Optional)";
             notesInput.placeholder = "Add optional remarks before forwarding...";
         }
@@ -988,7 +1004,7 @@ const CustomConfirm = {
             
             // Logic Requirement: Return MUST have a reason
             if (action === 'return' && !finalNotes) {
-                notesInput.style.borderColor = "#dc2626";
+                notesInput.classList.add('is-invalid');
                 alert("Please provide a reason for returning this report.");
                 return;
             }
