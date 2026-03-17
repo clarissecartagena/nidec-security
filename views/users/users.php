@@ -908,6 +908,20 @@ function getUserStatusBadge($status) {
       if (stepSearch) stepSearch.classList.add('hidden');
       if (stepForm)   stepForm.classList.remove('hidden');
       this.syncConditionalFields('add');
+
+      // Auto-populate entity for security employees. Entity is derived server-side
+      // from job_level; mirror that logic here so the required field has a value
+      // and HTML5 form validation does not block submission.
+      const entityField = document.getElementById('add-entity');
+      if (entityField) {
+        const apiEntity = String(emp.entity || '').trim().toUpperCase();
+        if (apiEntity === 'NCFL' || apiEntity === 'NPFL') {
+          entityField.value = apiEntity;
+        } else {
+          const jl = String(emp.job_level || '').trim().toLowerCase();
+          entityField.value = (jl === 'segurity guard') ? 'NPFL' : (jl === 'security' ? 'NCFL' : '');
+        }
+      }
     },
 
     /**

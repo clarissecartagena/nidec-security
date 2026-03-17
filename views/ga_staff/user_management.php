@@ -110,18 +110,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($auditOk) {
                     db_execute(
                         "INSERT INTO users
-                             (employee_no, name, email, position, department, username, password_hash,
+                             (employee_no, name, email, position, job_level, department, username, password_hash,
                               role, department_id, security_type, entity, account_status,
                               created_by_role, created_by_employee_no)
                          VALUES
-                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
+                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
                               ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?,
                               'ga_staff', ?)",
                         '',
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
+                            $emp['job_level'],   $emp['department'],
+                            $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                             $currentUserEmployeeNo,
                         ]
@@ -129,16 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     db_execute(
                         "INSERT INTO users
-                             (employee_no, name, email, position, department, username, password_hash,
+                             (employee_no, name, email, position, job_level, department, username, password_hash,
                               role, department_id, security_type, entity, account_status)
                          VALUES
-                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
+                             (NULLIF(?,''), ?, NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), NULLIF(?,''), ?, ?,
                               ?, NULLIF(?,0), NULLIF(?,''), NULLIF(?,''), ?)",
                         '',
                         [
                             $emp['employee_id'], $emp['fullname'],
                             $emp['email'],       $emp['position'],
-                            $emp['department'],  $username,  $hash,
+                            $emp['job_level'],   $emp['department'],
+                            $username,           $hash,
                             $role, $departmentId, $securityType, $entity, $accountStatus,
                         ]
                     );
@@ -720,6 +722,7 @@ function user_role_label(string $role): string {
                                 <label class="block text-sm font-medium text-foreground mb-1">Role</label>
                                 <select name="role" required id="add-role">
                                     <option value="" selected disabled>Select role</option>
+                                    <option value="ga_staff">GA Staff</option>
                                     <option value="security">Security</option>
                                     <option value="department">Department</option>
                                 </select>
