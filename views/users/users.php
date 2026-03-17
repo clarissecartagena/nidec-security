@@ -840,7 +840,11 @@ function getUserStatusBadge($status) {
       const resultsBox = document.getElementById('emp-search-results');
       if (resultsBox) resultsBox.classList.add('hidden');
 
-      const url = this._empApiUrl + '?q=' + encodeURIComponent(query);
+      // Use exact employee_id lookup for all-digit input; free-text search otherwise.
+      const isNumericId = /^\d+$/.test(query);
+      const url = isNumericId
+        ? this._empApiUrl + '?employee_id=' + encodeURIComponent(query)
+        : this._empApiUrl + '?q=' + encodeURIComponent(query);
 
       fetch(url, { credentials: 'same-origin' })
         .then(r => {
