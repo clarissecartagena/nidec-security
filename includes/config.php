@@ -1,15 +1,16 @@
 <?php
 // Check if user is logged in
 if (session_status() === PHP_SESSION_NONE) {
-    // Guard: if the session path was already set by index.php, respect it;
-    // otherwise default to the same writable project directory.
-    if (session_save_path() === '' || session_save_path() === ini_get('session.save_path')) {
-        $_cfgSessionPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
-        if (!is_dir($_cfgSessionPath)) {
-            mkdir($_cfgSessionPath, 0755, true);
-        }
-        session_save_path($_cfgSessionPath);
+    // Always use the project-local session directory so that direct API requests
+    // (served without going through index.php) read from the same location where
+    // index.php writes sessions on login.  The outer guard already ensures this
+    // block only runs when no session has been started yet, so there is no risk
+    // of overriding a path already set by index.php.
+    $_cfgSessionPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+    if (!is_dir($_cfgSessionPath)) {
+        mkdir($_cfgSessionPath, 0755, true);
     }
+    session_save_path($_cfgSessionPath);
     session_start();
 }
 
