@@ -71,6 +71,149 @@
   </div>
 </main>
 
+<style>
+/* Mark-as-Done Confirmation Modal */
+.done-confirm-content {
+    max-width: 420px;
+    text-align: left;
+    padding: 2rem;
+}
+
+.done-confirm-header {
+    position: relative;
+}
+
+.done-confirm-close-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.done-confirm-close-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.done-confirm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    margin-bottom: 0.75rem;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.done-confirm-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #f0fdf4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 1rem;
+    font-size: 28px;
+    color: #16a34a;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    border: 1px solid #bbf7d0;
+}
+
+.done-confirm-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.done-confirm-message {
+    font-size: 15px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 0;
+}
+
+.done-confirm-footer {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.btn-done-cancel {
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 600;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-done-cancel:hover {
+    background: #cbd5e1;
+    color: #1e293b;
+}
+
+.btn-done-confirm {
+    background: #16a34a;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-done-confirm:hover {
+    background: #15803d;
+}
+</style>
+
+<!-- Mark as Done Confirmation Modal -->
+<div id="done-confirm-overlay" class="modal-overlay hidden">
+    <div class="done-confirm-content">
+        <div class="done-confirm-header">
+            <button type="button" class="done-confirm-close-btn" onclick="MarkDoneConfirm.close()" aria-label="Close modal">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="done-confirm-chip">
+                <i class="bi bi-check2-circle"></i>
+                <span>Mark as Done</span>
+            </div>
+            <div class="done-confirm-icon-circle">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h3 class="done-confirm-title">Mark Report as Done?</h3>
+            <p class="done-confirm-message">This will send the report to Security for final checking. This action cannot be undone.</p>
+        </div>
+        <div class="done-confirm-footer">
+            <button type="button" class="btn-done-cancel" onclick="MarkDoneConfirm.close()">Cancel</button>
+            <button type="button" class="btn-done-confirm" onclick="MarkDoneConfirm.confirm()">
+                <i class="bi bi-check-circle me-1"></i> Yes, Mark as Done
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Department Action Modal -->
 <div id="dept-action-overlay" class="modal-overlay">
   <div id="dept-action-modal" class="report-modal">
@@ -230,11 +373,54 @@ const DepartmentActionModal = {
   },
 
   submitDone() {
-    return confirm('Mark as DONE and send to Security for final checking?');
+    MarkDoneConfirm.open();
+    return false;
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => DepartmentActionModal.init());
+const MarkDoneConfirm = {
+  overlay: null,
+
+  init() {
+    this.overlay = document.getElementById('done-confirm-overlay');
+    if (!this.overlay) return;
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isOpen()) this.close();
+    });
+  },
+
+  isOpen() {
+    return this.overlay && this.overlay.classList.contains('active');
+  },
+
+  open() {
+    if (!this.overlay) return;
+    this.overlay.classList.add('active');
+    this.overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  close() {
+    if (this.overlay) {
+      this.overlay.classList.remove('active');
+      this.overlay.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  },
+
+  confirm() {
+    this.close();
+    document.getElementById('dept-done-form').submit();
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  DepartmentActionModal.init();
+  MarkDoneConfirm.init();
+});
 </script>
 
 <script>
