@@ -26,9 +26,7 @@ if ($reportNo === '') {
     exit;
 }
 
-$userBuilding      = normalize_building($user['entity'] ?? $user['building'] ?? null);
 $userDepartmentId  = (int)($user['department_id'] ?? 0);
-$userSecurityType  = norm_security_type($user['security_type'] ?? null); // Normalizes to 'internal' or 'external'
 
 $whereExtra = '';
 $params = [$reportNo];

@@ -26,7 +26,7 @@ class SubmitReportService
         $assessment = trim((string)($post['assessment'] ?? ''));
         $recommendations = trim((string)($post['recommendations'] ?? ''));
         $securityType = trim((string)($post['security_type'] ?? ''));
-        $building = strtoupper(trim((string)($post['building'] ?? '')));
+        $building = normalize_building($post['building'] ?? null);
 
         $allowedSev = ['low', 'medium', 'high', 'critical'];
 
@@ -46,7 +46,7 @@ class SubmitReportService
             return ['flash' => 'Please select a valid report type (Internal or External).', 'flashType' => 'error', 'successReportNo' => null];
         }
 
-        if (!in_array($building, ['NCFL', 'NPFL'], true)) {
+        if (!$building) {
             return ['flash' => 'Please select a valid entity (NCFL or NPFL).', 'flashType' => 'error', 'successReportNo' => null];
         }
 
