@@ -34,13 +34,7 @@ $userDepartmentId = (int)($user['department_id'] ?? 0);
 $whereExtra = '';
 $params = [$id];
 if ($role === 'security') {
-    if (!$userBuilding) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Account is missing an assigned building']);
-        exit;
-    }
-    $whereExtra = ' AND r.building = ?';
-    $params[] = $userBuilding;
+    // Security users can view all reports — no building/security_type restriction
 } elseif ($role === 'department') {
     if ($userDepartmentId <= 0) {
         http_response_code(403);
@@ -59,6 +53,7 @@ $sql = "SELECT
         r.location,
         r.severity,
         r.building,
+        r.security_type,
         r.responsible_department_id,
         r.details,
         r.actions_taken,
@@ -148,9 +143,9 @@ foreach ($attachments as $a) {
     ];
 }
 
-// Normalise security_type: must be exactly 'internal' or 'external'
-$rawSecType = strtolower(trim((string)($report['submitted_by_security_type'] ?? '')));
-$securityType = in_array($rawSecType, ['internal', 'external'], true) ? $rawSecType : 'internal';
+// Use the report's own security_type; fall back to the submitter's security_type for older records
+$rawSecType = strtolower(trim((string)($report['security_type'] ?? $report['submitted_by_security_type'] ?? '')));
+$securityType = in_array($rawSecType, ['internal', 'external'], true) ? $rawSecType : 'external'; // 'external' matches the DB column default
 
 $out = [
     // Keep legacy "id" as the human-friendly Report No (used widely by ReportModal)

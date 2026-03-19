@@ -11,7 +11,7 @@ class SubmitReportService
         $this->model = $model ?: new SubmitReportModel();
     }
 
-    public function handlePost(array $post, array $files, string $userId, string $userBuilding, string $publicDirFs): array
+    public function handlePost(array $post, array $files, string $userId, string $publicDirFs): array
     {
         $token = (string)($post['csrf_token'] ?? '');
 
@@ -25,6 +25,8 @@ class SubmitReportService
         $remarks = trim((string)($post['remarks'] ?? ''));
         $assessment = trim((string)($post['assessment'] ?? ''));
         $recommendations = trim((string)($post['recommendations'] ?? ''));
+        $securityType = trim((string)($post['security_type'] ?? ''));
+        $building = strtoupper(trim((string)($post['building'] ?? '')));
 
         $allowedSev = ['low', 'medium', 'high', 'critical'];
 
@@ -38,6 +40,14 @@ class SubmitReportService
 
         if (!in_array($severity, $allowedSev, true)) {
             return ['flash' => 'Invalid severity level.', 'flashType' => 'error', 'successReportNo' => null];
+        }
+
+        if (!in_array($securityType, ['internal', 'external'], true)) {
+            return ['flash' => 'Please select a valid report type (Internal or External).', 'flashType' => 'error', 'successReportNo' => null];
+        }
+
+        if (!in_array($building, ['NCFL', 'NPFL'], true)) {
+            return ['flash' => 'Please select a valid entity (NCFL or NPFL).', 'flashType' => 'error', 'successReportNo' => null];
         }
 
         if (!$this->model->isActiveDepartment($departmentId)) {
@@ -61,7 +71,8 @@ class SubmitReportService
                         'category' => $category,
                         'location' => $location,
                         'severity' => $severity,
-                        'building' => $userBuilding,
+                        'building' => $building,
+                        'security_type' => $securityType,
                         'department_id' => $departmentId,
                         'details' => $details,
                         'actions_taken' => ($actionsTaken === '' ? null : $actionsTaken),

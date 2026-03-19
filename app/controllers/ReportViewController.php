@@ -36,13 +36,7 @@ class ReportViewController extends BaseController
         $params = [$reportNo];
 
         if ($role === 'security') {
-            $building = normalize_building($user['entity'] ?? null);
-            if (!$building) {
-                http_response_code(403);
-                die('Account has no assigned building');
-            }
-            $whereExtra = ' AND r.building = ?';
-            $params[] = $building;
+            // Security users can view all reports — no building restriction
         } elseif ($role === 'department') {
             $deptId = (int)($user['department_id'] ?? 0);
             if ($deptId <= 0) {

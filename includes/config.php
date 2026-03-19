@@ -108,17 +108,10 @@ function normalize_building($building): ?string {
 
 /**
  * Returns the building filter that should be applied to data queries.
- * - Security: always forced to their assigned entity (stored in session as 'entity').
+ * - Security: uses the requested building filter (if any) — no longer forced to their entity.
  * - Other roles: optional, derived from request param `building` (GET/POST).
  */
 function get_effective_building_filter(): ?string {
-    $user = getUser();
-    $role = (string)($user['role'] ?? '');
-
-    if ($role === 'security') {
-        return normalize_building($user['entity'] ?? null);
-    }
-
     // Allow filters on both GET and POST for pages/APIs
     $requested = $_GET['building'] ?? ($_POST['building'] ?? null);
     return normalize_building($requested);

@@ -38,6 +38,7 @@ class PrintReportController extends BaseController
                 r.location,
                 r.severity,
                 r.building,
+                r.security_type,
                 r.responsible_department_id,
                 r.status,
                 r.details,
@@ -84,10 +85,8 @@ class PrintReportController extends BaseController
             if (in_array($role, ['ga_staff', 'ga_president'], true)) return true;
 
             if ($role === 'security') {
-                $userBuilding = normalize_building($userRow['entity'] ?? null);
-                $reportBuilding = normalize_building($reportRow['building'] ?? null);
-                if (!$userBuilding || !$reportBuilding) return false;
-                return $userBuilding === $reportBuilding;
+                // Security users can view all reports — no building restriction
+                return true;
             }
 
             if ($role === 'department') {
@@ -139,7 +138,7 @@ class PrintReportController extends BaseController
             return in_array($v, ['internal', 'external'], true) ? $v : 'external';
         };
 
-        $reportSecurityType = $normSecurityType($report['submitted_by_security_type'] ?? null);
+        $reportSecurityType = $normSecurityType($report['security_type'] ?? $report['submitted_by_security_type'] ?? null);
         $template = $reportSecurityType; // 'internal' | 'external'
 
         // Template branding + logo

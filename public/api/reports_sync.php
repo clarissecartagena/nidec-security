@@ -61,6 +61,7 @@ $rows = db_fetch_all(
         r.location,
         r.severity,
         r.building,
+        r.security_type,
         r.responsible_department_id,
         d.name AS department_name,
         r.details,
@@ -91,8 +92,10 @@ $checksumParts = [];
 
 foreach ($rows as $row) {
     $reportNo = (string)($row['report_no'] ?? '');
-    $securityTypeRaw = strtolower(trim((string)($row['submitted_by_security_type'] ?? '')));
-    $securityType = in_array($securityTypeRaw, ['internal', 'external'], true) ? $securityTypeRaw : 'internal';
+    // Use the report's own security_type; fall back to the submitter's for older records
+    // Defaults to 'external' which matches the DB column default set by migration 011
+    $securityTypeRaw = strtolower(trim((string)($row['security_type'] ?? $row['submitted_by_security_type'] ?? '')));
+    $securityType = in_array($securityTypeRaw, ['internal', 'external'], true) ? $securityTypeRaw : 'external';
 
     $pdfInternalUrl = sync_api_absolute_url(app_url('api/report_pdf_internal.php?id=' . rawurlencode($reportNo) . '&api_key=' . rawurlencode($expectedKey)));
     $pdfExternalUrl = sync_api_absolute_url(app_url('api/report_pdf_external.php?id=' . rawurlencode($reportNo) . '&api_key=' . rawurlencode($expectedKey)));

@@ -10,7 +10,7 @@ $deptId = (int)($user['department_id'] ?? 0);
 $userBuilding = normalize_building($user['entity'] ?? null);
 
 $canSeeAll = in_array($role, ['ga_president', 'ga_staff', 'security'], true);
-$canChooseBuilding = in_array($role, ['ga_president', 'ga_staff', 'department'], true);
+$canChooseBuilding = in_array($role, ['ga_president', 'ga_staff', 'security', 'department'], true);
 $departmentsDb = fetch_departments();
 
 $apiUrl = app_url('api/analytics.php');
@@ -454,12 +454,7 @@ $apiUrl = app_url('api/analytics.php');
 
             <div class="col-12 col-md-2">
                 <label class="form-label text-xs fw-bold text-muted-foreground mb-1 uppercase">Building</label>
-                <?php if ($role === 'security'): ?>
-                    <div class="analytics-readonly px-2 d-flex align-items-center" style="background-color: #e9ecef; border-radius: 6px; height: 38px;">
-                        <span class="text-sm fw-bold text-muted-foreground"><?php echo htmlspecialchars($userBuilding ?: '—'); ?></span>
-                    </div>
-                    <input type="hidden" name="building" id="af-building" value="<?php echo htmlspecialchars($userBuilding ?: ''); ?>" />
-                <?php elseif ($canChooseBuilding): ?>
+                <?php if ($canChooseBuilding): ?>
                     <select name="building" id="af-building" class="form-select form-select-sm border-0 shadow-sm" 
                             style="background-color: #c3e6cb; color: #155724; font-weight: 600; border-radius: 6px; cursor: pointer; height: 38px;">
                         <option value="">All Buildings</option>

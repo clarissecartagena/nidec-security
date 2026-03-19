@@ -30,13 +30,7 @@ class PrintReportByNoController extends BaseController
         $params = [$reportNo];
 
         if ($role === 'security') {
-            if (!$userBuilding) {
-                http_response_code(403);
-                echo 'Account is missing an assigned building';
-                exit;
-            }
-            $whereExtra = ' AND building = ?';
-            $params[] = $userBuilding;
+            // Security users can view all reports — no building restriction
         } elseif ($role === 'department') {
             if ($userDepartmentId <= 0) {
                 http_response_code(403);

@@ -34,19 +34,7 @@ $whereExtra = '';
 $params = [$reportNo];
 
 if ($role === 'security') {
-    if (!$userBuilding) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => 'Account is missing an assigned building']);
-        exit;
-    }
-    
-    // Filter by BOTH building and security_type
-    // This ensures NPFL External users only see NPFL External reports
-    $whereExtra = ' AND UPPER(TRIM(r.building)) = UPPER(TRIM(?)) 
-                    AND LOWER(u_submit.security_type) = LOWER(?)';
-    $params[] = $userBuilding;
-    $params[] = $userSecurityType;
+    // Security users can view all reports — no building/security_type restriction
 
 } elseif ($role === 'department' || $role === 'pic') {
     if ($userDepartmentId <= 0) {
@@ -73,6 +61,7 @@ $sql = "SELECT
         r.location,
         r.severity,
         r.building,
+        r.security_type,
         r.status,
         r.submitted_at,
         r.details,
@@ -281,9 +270,8 @@ function output_report_template_pdf(array $report, string $filename, array $evid
     $subjectLine = strtoupper((string)($report['category'] ?? 'REPORT')) . ' RE: ' . strtoupper((string)($report['subject'] ?? ''));
     $dateStr     = !empty($report['submitted_at']) ? date('d F Y', strtotime($report['submitted_at'])) : date('d F Y');
 
-    // FIX #3 (THE CORE FIX): determine template from the report's submitter security_type
-    // norm_security_type returns 'internal' or 'external' — never an empty/wrong value
-    $template = norm_security_type($report['submitted_by_security_type'] ?? null);
+    // Use the report's own security_type; fall back to the submitter's security_type for older records
+    $template = norm_security_type($report['security_type'] ?? $report['submitted_by_security_type'] ?? null);
 
     // ── Header text lines (depend entirely on $template) ─────────────────────
     if ($template === 'internal') {
