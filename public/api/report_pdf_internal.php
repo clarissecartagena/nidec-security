@@ -50,14 +50,7 @@ if (!$syncApiAuthorized) {
     $userBuilding = normalize_building($user['entity'] ?? $user['building'] ?? null);
     $userDepartmentId = (int)($user['department_id'] ?? 0);
     if ($role === 'security') {
-        if (!$userBuilding) {
-            http_response_code(403);
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['error' => 'Account is missing an assigned building']);
-            exit;
-        }
-        $whereExtra = ' AND r.building = ?';
-        $params[] = $userBuilding;
+        // Security users can view all reports — no building restriction
     } elseif ($role === 'department') {
         if ($userDepartmentId <= 0) {
             http_response_code(403);

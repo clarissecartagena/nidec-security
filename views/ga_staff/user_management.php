@@ -96,10 +96,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $securityType = '';
                     $entity       = '';
                 } elseif ($role === 'security') {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a valid Security Type.');
-                    }
                     $departmentId = 0;
+                    // security_type is optional for security users
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid Security Type (Internal or External).');
+                    }
                 } else {
                     // ga_staff
                     $departmentId = 0;
@@ -186,8 +187,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $securityType = '';
                     $entity = '';
                 } else {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a valid Security Type.');
+                    // security_type is now optional for security users
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid Security Type (Internal or External).');
                     }
                     if (!in_array($entity, ['NCFL', 'NPFL'], true)) {
                         throw new RuntimeException('Please select an assigned entity (NCFL/NPFL).');
@@ -736,9 +738,9 @@ function user_role_label(string $role): string {
                             </div>
 
                             <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
                                 <select name="security_type" class="form-select form-select-sm" id="add-security-type">
-                                    <option value="" selected disabled>Select type</option>
+                                    <option value="">Select type (optional)</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>

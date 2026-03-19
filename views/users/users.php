@@ -501,9 +501,9 @@ function getUserStatusBadge($status) {
                             </div>
 
                             <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
                                 <select name="security_type" class="form-select form-select-sm" id="add-security-type">
-                                    <option value="" selected disabled>Select type</option>
+                                    <option value="">Select type (optional)</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>

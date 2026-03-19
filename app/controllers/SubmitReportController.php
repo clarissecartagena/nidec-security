@@ -33,17 +33,12 @@ class SubmitReportController extends BaseController
         }
 
         $uid = (string)($currentUser['employee_no'] ?? '');
-        $userBuilding = (string)($currentUser['entity'] ?? '');
-        if (!in_array($userBuilding, ['NCFL', 'NPFL'], true)) {
-            $flash = 'Your account is missing an assigned building. Please contact General Affairs.';
-            $flashType = 'error';
-        }
 
         $departmentsDb = fetch_departments();
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$flash) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $publicDirFs = realpath(__DIR__ . '/../../public') ?: (__DIR__ . '/../../public');
-            $res = $this->service->handlePost($_POST, $_FILES, $uid, $userBuilding, $publicDirFs);
+            $res = $this->service->handlePost($_POST, $_FILES, $uid, $publicDirFs);
             $flash = $res['flash'];
             $flashType = $res['flashType'];
             $successReportNo = $res['successReportNo'];

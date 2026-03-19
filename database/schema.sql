@@ -76,6 +76,7 @@ CREATE TABLE reports (
   location VARCHAR(150) NOT NULL,
   severity ENUM('low','medium','high','critical') NOT NULL,
   building ENUM('NCFL','NPFL') NOT NULL,
+  security_type ENUM('internal','external') NOT NULL DEFAULT 'external',
   responsible_department_id INT UNSIGNED NOT NULL,
   details TEXT NOT NULL,
   actions_taken TEXT NULL,
