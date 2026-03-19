@@ -11,7 +11,7 @@ class SubmitReportService
         $this->model = $model ?: new SubmitReportModel();
     }
 
-    public function handlePost(array $post, array $files, string $userId, string $userBuilding, string $publicDirFs): array
+    public function handlePost(array $post, array $files, string $userId, string $publicDirFs): array
     {
         $token = (string)($post['csrf_token'] ?? '');
 
@@ -25,6 +25,8 @@ class SubmitReportService
         $remarks = trim((string)($post['remarks'] ?? ''));
         $assessment = trim((string)($post['assessment'] ?? ''));
         $recommendations = trim((string)($post['recommendations'] ?? ''));
+        $building = strtoupper(trim((string)($post['building'] ?? '')));
+        $securityType = strtolower(trim((string)($post['security_type'] ?? '')));
 
         $allowedSev = ['low', 'medium', 'high', 'critical'];
 
@@ -34,6 +36,14 @@ class SubmitReportService
 
         if ($subject === '' || $category === '' || $location === '' || $details === '' || $departmentId <= 0) {
             return ['flash' => 'Please fill in all required fields.', 'flashType' => 'error', 'successReportNo' => null];
+        }
+
+        if (!in_array($building, ['NCFL', 'NPFL'], true)) {
+            return ['flash' => 'Please select a valid entity/building.', 'flashType' => 'error', 'successReportNo' => null];
+        }
+
+        if (!in_array($securityType, ['internal', 'external'], true)) {
+            return ['flash' => 'Please select a valid report type (Internal or External).', 'flashType' => 'error', 'successReportNo' => null];
         }
 
         if (!in_array($severity, $allowedSev, true)) {
@@ -61,7 +71,8 @@ class SubmitReportService
                         'category' => $category,
                         'location' => $location,
                         'severity' => $severity,
-                        'building' => $userBuilding,
+                        'building' => $building,
+                        'security_type' => $securityType,
                         'department_id' => $departmentId,
                         'details' => $details,
                         'actions_taken' => ($actionsTaken === '' ? null : $actionsTaken),

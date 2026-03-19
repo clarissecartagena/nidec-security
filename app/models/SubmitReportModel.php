@@ -41,9 +41,9 @@ class SubmitReportModel
     public function insertReport(array $data): int
     {
         db_execute(
-            "INSERT INTO reports (report_no, subject, category, location, severity, building, responsible_department_id, details, actions_taken, remarks, assessment, recommendations, submitted_by, status, current_reviewer, submitted_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted_to_ga_staff', 'ga_staff', NOW())",
-            'ssssssissssss',
+            "INSERT INTO reports (report_no, subject, category, location, severity, building, security_type, responsible_department_id, details, actions_taken, remarks, assessment, recommendations, submitted_by, status, current_reviewer, submitted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted_to_ga_staff', 'ga_staff', NOW())",
+            'sssssssissssss',
             [
                 $data['report_no'],
                 $data['subject'],
@@ -51,6 +51,7 @@ class SubmitReportModel
                 $data['location'],
                 $data['severity'],
                 $data['building'],
+                $data['security_type'],
                 (int)$data['department_id'],
                 $data['details'],
                 $data['actions_taken'],

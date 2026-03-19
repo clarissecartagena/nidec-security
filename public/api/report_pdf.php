@@ -28,25 +28,16 @@ if ($reportNo === '') {
 
 $userBuilding      = normalize_building($user['entity'] ?? $user['building'] ?? null);
 $userDepartmentId  = (int)($user['department_id'] ?? 0);
-$userSecurityType  = norm_security_type($user['security_type'] ?? null); // Normalizes to 'internal' or 'external'
 
 $whereExtra = '';
 $params = [$reportNo];
 
 if ($role === 'security') {
-    if (!$userBuilding) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => 'Account is missing an assigned building']);
-        exit;
+    if ($userBuilding) {
+        // Security users can only access reports for their assigned building
+        $whereExtra = ' AND UPPER(TRIM(r.building)) = UPPER(TRIM(?))';
+        $params[] = $userBuilding;
     }
-    
-    // Filter by BOTH building and security_type
-    // This ensures NPFL External users only see NPFL External reports
-    $whereExtra = ' AND UPPER(TRIM(r.building)) = UPPER(TRIM(?)) 
-                    AND LOWER(u_submit.security_type) = LOWER(?)';
-    $params[] = $userBuilding;
-    $params[] = $userSecurityType;
 
 } elseif ($role === 'department' || $role === 'pic') {
     if ($userDepartmentId <= 0) {
@@ -73,6 +64,7 @@ $sql = "SELECT
         r.location,
         r.severity,
         r.building,
+        r.security_type         AS submitted_by_security_type,
         r.status,
         r.submitted_at,
         r.details,
@@ -82,7 +74,6 @@ $sql = "SELECT
         r.fix_due_date,
         d.name AS department_name,
         u_submit.name           AS submitted_by_name,
-        u_submit.security_type  AS submitted_by_security_type,
         u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at,
         gasr.notes              AS ga_staff_notes,

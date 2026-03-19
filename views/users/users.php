@@ -501,9 +501,9 @@ function getUserStatusBadge($status) {
                             </div>
 
                             <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-muted-foreground fst-italic" style="font-size:0.78rem;">(Optional)</span></label>
                                 <select name="security_type" class="form-select form-select-sm" id="add-security-type">
-                                    <option value="" selected disabled>Select type</option>
+                                    <option value="" selected>— not specified —</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>
@@ -582,9 +582,9 @@ function getUserStatusBadge($status) {
                         </div>
 
                         <div id="edit-security-type-wrap" class="hidden col-12 col-md-6">
-                            <label class="form-label text-sm font-medium text-foreground mb-1">Security Type</label>
+                            <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-muted-foreground fst-italic" style="font-size:0.78rem;">(Optional)</span></label>
                             <select name="security_type" class="form-select form-select-sm" id="edit-security-type">
-                                <option value="" selected disabled>Select type</option>
+                                <option value="">— not specified —</option>
                                 <option value="internal">Internal</option>
                                 <option value="external">External</option>
                             </select>

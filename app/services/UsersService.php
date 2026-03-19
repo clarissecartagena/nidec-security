@@ -93,8 +93,9 @@ class UsersService
                     $securityType = '';
                     $entity       = '';
                 } elseif ($role === 'security') {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a security type (internal/external).');
+                    // security_type is optional — validate only if provided
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid security type (internal/external).');
                     }
                     // entity (NCFL/NPFL) is auto-detected from job_level — no manual input needed.
                 } else {
@@ -154,8 +155,9 @@ class UsersService
                     $securityType = '';
                     $entity = '';
                 } elseif ($role === 'security') {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a security type (internal/external).');
+                    // security_type is optional — validate only if provided
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid security type (internal/external).');
                     }
                     if (!in_array($entity, ['NCFL', 'NPFL'], true)) {
                         throw new RuntimeException('Please select an assigned entity (NCFL/NPFL).');
