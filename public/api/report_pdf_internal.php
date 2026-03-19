@@ -77,7 +77,7 @@ $sql = "SELECT
         r.id, r.report_no, r.subject, r.category, r.location, r.severity, r.building,
         r.status, r.submitted_at, r.details, r.actions_taken, r.remarks, r.security_remarks,
         d.name AS department_name, u_submit.name AS submitted_by_name,
-        u_submit.security_type AS submitted_by_security_type,
+        r.security_type AS submitted_by_security_type,
         u_submit.signature_path AS submitted_by_signature,
         gasr.reviewed_at, u_staff.name AS ga_staff_reviewer,
         u_staff.signature_path AS ga_staff_signature"

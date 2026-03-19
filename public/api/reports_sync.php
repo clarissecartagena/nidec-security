@@ -76,7 +76,7 @@ $rows = db_fetch_all(
         r.returned_at,
         u.employee_no AS submitted_by,
         u.name AS submitted_by_name,
-        u.security_type AS submitted_by_security_type
+        r.security_type AS submitted_by_security_type
      FROM reports r
      JOIN departments d ON d.id = r.responsible_department_id
 LEFT JOIN users u ON u.employee_no = r.submitted_by

@@ -48,7 +48,7 @@ class PrintReportController extends BaseController
                 r.submitted_at,
                 d.name AS department_name,
                 u_submit.name AS submitted_by_name,
-                u_submit.security_type AS submitted_by_security_type,
+                r.security_type AS submitted_by_security_type,
                 gasr.reviewed_at,
                 gasr.notes AS ga_staff_notes,
                 u_staff.name AS ga_staff_reviewer,

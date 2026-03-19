@@ -96,8 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $securityType = '';
                     $entity       = '';
                 } elseif ($role === 'security') {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a valid Security Type.');
+                    // security_type is optional — validate only if provided
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid Security Type (Internal or External).');
                     }
                     $departmentId = 0;
                 } else {
@@ -186,8 +187,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $securityType = '';
                     $entity = '';
                 } else {
-                    if (!in_array($securityType, ['internal', 'external'], true)) {
-                        throw new RuntimeException('Please select a valid Security Type.');
+                    // security_type is optional — validate only if provided
+                    if ($securityType !== '' && !in_array($securityType, ['internal', 'external'], true)) {
+                        throw new RuntimeException('Please select a valid Security Type (Internal or External).');
                     }
                     if (!in_array($entity, ['NCFL', 'NPFL'], true)) {
                         throw new RuntimeException('Please select an assigned entity (NCFL/NPFL).');
@@ -736,9 +738,9 @@ function user_role_label(string $role): string {
                             </div>
 
                             <div id="add-security-type-wrap" class="hidden col-12 col-md-6">
-                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-danger">*</span></label>
+                                <label class="form-label text-sm font-medium text-foreground mb-1">Security Type <span class="text-muted-foreground fst-italic" style="font-size:0.78rem;">(Optional)</span></label>
                                 <select name="security_type" class="form-select form-select-sm" id="add-security-type">
-                                    <option value="" selected disabled>Select type</option>
+                                    <option value="" selected>— not specified —</option>
                                     <option value="internal">Internal</option>
                                     <option value="external">External</option>
                                 </select>
@@ -818,9 +820,9 @@ function user_role_label(string $role): string {
                         </div>
 
                         <div id="edit-security-type-wrap" class="hidden">
-                            <label class="block text-sm font-medium text-foreground mb-1">Security Type</label>
+                            <label class="block text-sm font-medium text-foreground mb-1">Security Type <span class="text-muted-foreground fst-italic" style="font-size:0.78rem;">(Optional)</span></label>
                             <select name="security_type" id="edit-security-type">
-                                <option value="" selected disabled>Select type</option>
+                                <option value="">— not specified —</option>
                                 <option value="internal">Internal</option>
                                 <option value="external">External</option>
                             </select>

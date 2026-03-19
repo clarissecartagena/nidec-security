@@ -71,7 +71,7 @@ $sql = "SELECT
         r.fix_due_date,
         r.submitted_at,
         u_submit.name          AS submitted_by_name,
-        u_submit.security_type AS submitted_by_security_type,
+        r.security_type        AS submitted_by_security_type,
         d.name AS department_name,
         gasr.reviewed_at,
         gasr.notes AS ga_staff_notes,

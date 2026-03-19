@@ -110,6 +110,22 @@
 
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
+                        <label for="report-type" class="form-label">Report Type <span class="text-danger">*</span></label>
+                        <select id="report-type" name="security_type" class="form-select" required>
+                            <option value="" disabled selected>Select report type</option>
+                            <option value="internal" <?= (($_POST['security_type'] ?? '') === 'internal') ? 'selected' : '' ?>>Internal</option>
+                            <option value="external" <?= (($_POST['security_type'] ?? '') === 'external') ? 'selected' : '' ?>>External</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="building" class="form-label">Entity / Building <span class="text-danger">*</span></label>
+                        <select id="building" name="building" class="form-select" required>
+                            <option value="" disabled selected>Select entity</option>
+                            <option value="NCFL" <?= (($_POST['building'] ?? '') === 'NCFL') ? 'selected' : '' ?>>NCFL</option>
+                            <option value="NPFL" <?= (($_POST['building'] ?? '') === 'NPFL') ? 'selected' : '' ?>>NPFL</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
                         <label for="subject" class="form-label">Subject <span class="text-danger">*</span></label>
                         <input type="text" id="subject" name="subject" required
                             placeholder="Brief description of the incident"
