@@ -7,16 +7,25 @@ class DepartmentActionController extends BaseController
 {
     public function index(): void
     {
-        $pageTitle = 'Department Action';
-        $currentPage = 'department-action.php';
-
         require_once __DIR__ . '/../../includes/config.php';
-        require_once __DIR__ . '/../../includes/header.php';
-        require_once __DIR__ . '/../../includes/sidebar.php';
-        require_once __DIR__ . '/../../includes/topnav.php';
 
-        require __DIR__ . '/../../views/department/department_action.php';
+        if (!isAuthenticated()) {
+            header('Location: ' . app_url('login.php'));
+            exit;
+        }
 
-        require_once __DIR__ . '/../../includes/footer.php';
+        $currentUser = getUser();
+        if (($currentUser['role'] ?? '') !== 'department') {
+            header('Location: ' . app_url('login.php'));
+            exit;
+        }
+
+        $target = app_url('assigned-reports.php');
+        $building = trim((string)($_GET['building'] ?? ''));
+        if (in_array($building, ['NCFL', 'NPFL', 'all'], true)) {
+            $target .= (str_contains($target, '?') ? '&' : '?') . http_build_query(['building' => $building]);
+        }
+        header('Location: ' . $target);
+        exit;
     }
 }
